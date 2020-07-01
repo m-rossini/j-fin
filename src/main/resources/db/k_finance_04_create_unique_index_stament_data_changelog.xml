@@ -1,0 +1,28 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+                   xmlns:pro="http://www.liquibase.org/xml/ns/pro" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd http://www.liquibase.org/xml/ns/pro http://www.liquibase.org/xml/ns/pro/liquibase-pro-3.8.xsd http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+
+    <changeSet id="create-load-control" author="marcos">
+        <createIndex indexName="ix_statement_data_unique_1" tableName="statement_data" unique="true">
+            <column name="statement_date">
+            </column>
+            <column name="transaction_type">
+            </column>
+            <column name="sort_code">
+            </column>
+            <column name="account_id">
+            </column>
+            <column name="transaction_description">
+            </column>
+            <column name="transaction_amount">
+            </column>
+            <column name="total_balance">
+            </column>
+        </createIndex>
+    </changeSet>
+
+
+</databaseChangeLog>

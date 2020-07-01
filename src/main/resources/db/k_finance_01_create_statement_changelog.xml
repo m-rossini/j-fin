@@ -1,0 +1,56 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+                   xmlns:pro="http://www.liquibase.org/xml/ns/pro" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd http://www.liquibase.org/xml/ns/pro http://www.liquibase.org/xml/ns/pro/liquibase-pro-3.8.xsd http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+
+    <changeSet id="create-transaction-type" author="marcos">
+        <createTable tableName="transaction_type">
+            <column name="transaction_type" type="java.sql.Types.VARCHAR(3)">
+                <constraints primaryKey="true" primaryKeyName="pk_transaction__type"/>
+            </column>
+            <column name="transaction_description" type="java.sql.Types.VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="create-statement-data" author="marcos">
+        <createTable tableName="statement_data">
+            <column name="statement_id" autoIncrement="true" type="java.sql.Types.INTEGER">
+                <constraints primaryKey="true" primaryKeyName="pk_statement_data_id"/>
+            </column>
+            <column name="transaction_order" type="INTEGER">
+                <constraints nullable="true"/>
+            </column>
+
+            <column name="statement_date" type="date">
+                <constraints nullable="false"/>
+            </column>
+            <column name="transaction_type" type="java.sql.Types.VARCHAR(3)">
+                <constraints nullable="false"
+                             referencedTableName="transaction_type"
+                             referencedColumnNames="transaction_type"
+                             foreignKeyName="fk_transaction_type"/>
+            </column>
+            <column name="sort_code" type="java.sql.Types.VARCHAR(10)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="account_id" type="java.sql.Types.VARCHAR(15)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="transaction_description" type="java.sql.Types.VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="transaction_amount" type="NUMERIC(8, 2)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="total_balance" type="NUMERIC(8, 2)">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+
+</databaseChangeLog>

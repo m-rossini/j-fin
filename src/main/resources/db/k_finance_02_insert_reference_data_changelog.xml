@@ -1,0 +1,60 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+                   xmlns:pro="http://www.liquibase.org/xml/ns/pro" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd http://www.liquibase.org/xml/ns/pro http://www.liquibase.org/xml/ns/pro/liquibase-pro-3.8.xsd http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+
+    <changeSet id="insert-transaction_type" author="marcos">
+        <insert tableName="transaction_type">
+            <column name="transaction_type" value="BGC"/>
+            <column name="transaction_description" value="Bank Giro Credit"/>
+        </insert>
+        <insert tableName="transaction_type">
+            <column name="transaction_type" value="BP"/>
+            <column name="transaction_description" value="Bill Payment"/>
+        </insert>
+        <insert tableName="transaction_type">
+            <column name="transaction_type" value="CHG"/>
+            <column name="transaction_description" value="Charge"/>
+        </insert>
+        <insert tableName="transaction_type">
+            <column name="transaction_type" value="COR"/>
+            <column name="transaction_description" value="Correction"/>
+        </insert>
+        <insert tableName="transaction_type">
+            <column name="transaction_type" value="CPT"/>
+            <column name="transaction_description" value="Cash Point"/>
+        </insert>
+        <insert tableName="transaction_type">
+            <column name="transaction_type" value="DD"/>
+            <column name="transaction_description" value="Direct Debit"/>
+        </insert>
+        <insert tableName="transaction_type">
+            <column name="transaction_type" value="DEB"/>
+            <column name="transaction_description" value="Debit Card"/>
+        </insert>
+        <insert tableName="transaction_type">
+            <column name="transaction_type" value="DEP"/>
+            <column name="transaction_description" value="Deposit"/>
+        </insert>
+        <insert tableName="transaction_type">
+            <column name="transaction_type" value="FPI"/>
+            <column name="transaction_description" value="Faster Payment Incoming"/>
+        </insert>
+        <insert tableName="transaction_type">
+            <column name="transaction_type" value="FPO"/>
+            <column name="transaction_description" value="Faster Payment Outgoing"/>
+        </insert>
+        <insert tableName="transaction_type">
+            <column name="transaction_type" value="SO"/>
+            <column name="transaction_description" value="Standing Order"/>
+        </insert>
+        <insert tableName="transaction_type">
+            <column name="transaction_type" value="TFR"/>
+            <column name="transaction_description" value="Transfer"/>
+        </insert>
+    </changeSet>
+
+
+</databaseChangeLog>
