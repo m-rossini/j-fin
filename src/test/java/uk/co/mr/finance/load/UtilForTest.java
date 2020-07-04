@@ -15,28 +15,40 @@ import java.nio.file.StandardOpenOption;
 import java.sql.Connection;
 
 public final class UtilForTest {
-    private UtilForTest() {
+  private UtilForTest() {
 
-    }
+  }
 
-    public static Path createFile(FileSystem fileSystem,
-                                  String fileName,
-                                  String content) throws IOException {
-        Path path = fileSystem.getPath("", fileName);
+  public static Path createFile(FileSystem fileSystem,
+                                String fileName,
+                                String content) throws IOException {
+    Path path = fileSystem.getPath("", fileName);
 
-        Files.writeString(path,
-                          content,
-                          StandardOpenOption.CREATE,
-                          StandardOpenOption.DSYNC);
-        return path;
-    }
+    Files.writeString(path,
+                      content,
+                      StandardOpenOption.CREATE,
+                      StandardOpenOption.DELETE_ON_CLOSE,
+                      StandardOpenOption.TRUNCATE_EXISTING,
+                      StandardOpenOption.DSYNC);
 
-    public static void createDatabase(Connection connection) throws LiquibaseException {
-        Database database =
-                DatabaseFactory.getInstance()
-                               .findCorrectDatabaseImplementation(new JdbcConnection(connection));
-        Liquibase liquibase =
-                new Liquibase("db/k_finance_00_master_changelog.xml", new ClassLoaderResourceAccessor(), database);
-        liquibase.update("");
-    }
+    return path;
+  }
+
+  public static void createDatabase(Connection connection) throws LiquibaseException {
+    Database database =
+        DatabaseFactory.getInstance()
+                       .findCorrectDatabaseImplementation(new JdbcConnection(connection));
+    Liquibase liquibase =
+        new Liquibase("db/k_finance_00_master_changelog.xml", new ClassLoaderResourceAccessor(), database);
+    liquibase.update("");
+  }
+
+  public static void dropDatabase(Connection connection) throws LiquibaseException {
+    Database database =
+        DatabaseFactory.getInstance()
+                       .findCorrectDatabaseImplementation(new JdbcConnection(connection));
+    Liquibase liquibase =
+        new Liquibase("db/k_finance_00_master_changelog.xml", new ClassLoaderResourceAccessor(), database);
+    liquibase.dropAll();
+  }
 }

@@ -8,7 +8,6 @@
     <include file="k_finance_02_insert_reference_data_changelog.xml" author="marcos" relativeToChangelogFile="true"/>
     <include file="k_finance_03_create_load_control_changelog.xml" author="marcos" relativeToChangelogFile="true"/>
     <include file="k_finance_04_create_unique_index_stament_data_changelog.xml" author="marcos" relativeToChangelogFile="true"/>
-    <include file="k_finance_05_add_hash_column.xml" author="marcos" relativeToChangelogFile="true"/>
-    <include file="k_finance_06_create_unique_index_hash.xml" author="marcos" relativeToChangelogFile="true"/>
+    <include file="k_finance_05_create_unique_index_hash.xml" author="marcos" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

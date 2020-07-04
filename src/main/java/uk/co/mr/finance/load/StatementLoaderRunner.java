@@ -1,11 +1,12 @@
 package uk.co.mr.finance.load;
 
-import io.vavr.control.Either;
+import io.vavr.Tuple2;
 import io.vavr.control.Try;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
+import uk.co.mr.finance.domain.Statement;
 
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -13,60 +14,74 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.Callable;
-import java.util.function.Function;
 
 import static picocli.CommandLine.Command;
 
 @Command(description = "Loads statement file into database", showDefaultValues = true)
-public class StatementLoaderRunner implements Callable<StatementSummary> {
-    private static final Logger LOG = LoggerFactory.getLogger(StatementLoaderRunner.class);
+public class StatementLoaderRunner implements Callable<Tuple2<Optional<Throwable>, Optional<StatementSummary>>> {
+  private static final Logger LOG = LoggerFactory.getLogger(StatementLoaderRunner.class);
 
-    @Option(names = {"-f", "--file"}, description = "File to load", required = true)
-    private Path toLoadPath;
+  @Option(names = {"-f", "--file"}, description = "File to load", required = true)
+  private Path toLoadPath;
 
-    @Option(names = {"-d", "--db-driver"}, required = true, description = "Database driver name to be used")
-    public String driverName;
+  @Option(names = {"-d", "--db-driver"}, required = true, description = "Database driver name to be used")
+  public String driverName;
 
-    @Option(names = {"-c", "--connect-string"}, required = true, description = "Connection String to be used")
-    public String connectString;
+  @Option(names = {"-c", "--connect-string"}, required = true, description = "Connection String to be used")
+  public String connectString;
 
-    @Option(names = {"-u",
-                     "--user-id"}, required = false, description = "User id to be used. It is optional, depends on database")
-    public String userId;
+  @Option(names = {"-u",
+                   "--user-id"}, required = false, description = "User id to be used. It is optional, depends on database")
+  public String userId;
 
-    @Option(names = {"-w", "--password-clean"}, required = false, description = "Clean text password")
-    public String cleanPassword;
-
-
-    //TODO Mutually exclusive encrypted vs non encrypted password
-    @Option(names = {"-h", "--help"}, usageHelp = true, description = "Displays usage help")
-    private boolean usageHelpRequested;
+  @Option(names = {"-w", "--password-clean"}, required = false, description = "Clean text password")
+  public String cleanPassword;
 
 
-    public static void main(String[] args) {
-        System.exit(new CommandLine(new StatementLoaderRunner()).execute(args));
+  //TODO Mutually exclusive encrypted vs non encrypted password
+  @Option(names = {"-h", "--help"}, usageHelp = true, description = "Displays usage help")
+  private boolean usageHelpRequested;
+
+
+  public static void main(String[] args) {
+    System.exit(new CommandLine(new StatementLoaderRunner()).execute(args));
+  }
+
+  @Override
+  public Tuple2<Optional<Throwable>, Optional<StatementSummary>> call() {
+    Instant is = Instant.now();
+
+    DatabaseManager databaseManager = new DatabaseManager(driverName, connectString, userId, cleanPassword);
+    Try<Connection> connection = databaseManager.getConnection();
+    if (connection.isFailure()) {
+      return new Tuple2<>(Optional.of(connection.getCause()),
+                        Optional.empty());
     }
 
-    @Override
-    public StatementSummary call() {
-        Instant is = Instant.now();
+    Try<Tuple2<Optional<Throwable>, Optional<StatementSummary>>> summaries =
+        connection.map(c -> new StatementLoader(databaseManager, new FileManager()))
+                  .map(loader -> loader.load(toLoadPath, Statement.transformToStatement()));
 
-        DatabaseManager databaseManager = new DatabaseManager(driverName, connectString, userId, cleanPassword);
-        Try<Connection> connection = databaseManager.getConnection();
+    connection.peek(c -> databaseManager.safeClose());
 
-        Either<Throwable, StatementSummary> summaries =
-                connection.map(c -> new LoadGuide(databaseManager))
-                          .toEither()
-                          .flatMap(loadGuide -> loadGuide.guide(toLoadPath));
+    Duration duration = Duration.between(is, Instant.now());
 
-        connection.peek(c -> databaseManager.safeClose());
+    String message = """
+        Total Time: [%s]
+        Exception Type: [%s]
+        Exception Message: [%s]
+        Summary: [%s]
+        """
+        .formatted(duration.toString(),
+                   summaries.get()._1().map(t -> t.getClass().getCanonicalName()).orElse("No exception occurred"),
+                   summaries.get()._1().map(Throwable::getMessage).orElse("No exception occurred"),
+                   summaries.get()._2().map(Object::toString).orElse("No summary was produced"));
+    summaries.peek(s -> LOG.info("Total Time:[{}]\nValue returned from load:[{}]", duration, s));
 
-        Duration duration = Duration.between(is, Instant.now());
-
-        return summaries.peek(s -> LOG.info("Total Time:[{}]\nValue returned from load:[{}]", duration, s))
-                        .getOrElseThrow(l -> {
-                            throw new IllegalArgumentException(l);
-                        });
-    }
+    return summaries.peek(s -> LOG.info(message))
+                    .getOrElseThrow(l -> {
+                      throw new IllegalArgumentException(l);
+                    });
+  }
 
 }

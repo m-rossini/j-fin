@@ -33,7 +33,7 @@ import uk.co.mr.finance.db.Keys;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class JLoadControl extends TableImpl<Record> {
 
-    private static final long serialVersionUID = 1294494938;
+    private static final long serialVersionUID = 123352533;
 
     /**
      * The reference instance of <code>public.load_control</code>
@@ -86,7 +86,7 @@ public class JLoadControl extends TableImpl<Record> {
     /**
      * The column <code>public.load_control.file_hash_code</code>.
      */
-    public final TableField<Record, String> FILE_HASH_CODE = createField(DSL.name("file_hash_code"), org.jooq.impl.SQLDataType.VARCHAR(16), this, "");
+    public final TableField<Record, String> FILE_HASH_CODE = createField(DSL.name("file_hash_code"), org.jooq.impl.SQLDataType.VARCHAR(32).nullable(false), this, "");
 
     /**
      * Create a <code>public.load_control</code> table reference
