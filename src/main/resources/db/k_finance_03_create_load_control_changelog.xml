@@ -31,6 +31,10 @@
             <column name="file_name" type="java.sql.Types.VARCHAR(150)">
                 <constraints nullable="false"/>
             </column>
+
+            <column name="file_hash_code" type="varchar(32)">
+                <constraints nullable="false"/>
+            </column>
         </createTable>
     </changeSet>
 
