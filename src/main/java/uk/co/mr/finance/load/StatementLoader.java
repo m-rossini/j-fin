@@ -7,6 +7,7 @@ import io.vavr.control.Option;
 import io.vavr.control.Try;
 import io.vavr.control.Validation;
 import org.jooq.DSLContext;
+import org.jooq.Record1;
 import org.jooq.SQLDialect;
 import org.jooq.impl.DSL;
 import org.slf4j.Logger;
@@ -31,6 +32,7 @@ import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.reducing;
 import static java.util.stream.Collectors.teeing;
 import static java.util.stream.Collectors.toList;
+import static uk.co.mr.finance.db.Tables.LOAD_CONTROL;
 import static uk.co.mr.finance.db.Tables.STATEMENT_DATA;
 
 public class StatementLoader implements DataLoader<Statement, DoubleSummaryStatistics> {
@@ -62,7 +64,7 @@ public class StatementLoader implements DataLoader<Statement, DoubleSummaryStati
     return fileManager.mayHashFile(path)
                       .onFailure(t -> LOG.error("Error trying to read file", t))
                       .flatMap(this::tryCanInsert)
-                      .flatMap(hash -> loadControlActions.tryInsertLoadControl(path.toAbsolutePath().toString(),hash))
+                      .flatMap(hash -> loadControlActions.tryInsertLoadControl(path.toAbsolutePath().toString(), hash))
                       .peek(id -> dbManager.safeCommit());
   }
 
@@ -156,13 +158,17 @@ public class StatementLoader implements DataLoader<Statement, DoubleSummaryStati
   //TODO move can insert methods to load control
   private Try<String> tryCanInsert(String hash) {
     return Try.of(() -> canInsert(hash))
+              .filter(b -> b)
               .map(b -> hash);
-
   }
 
-  private Boolean canInsert(String hash) {
-    //TODO Implement this
-    return true;
+  private boolean canInsert(String hash) {
+    return ctx.selectDistinct(LOAD_CONTROL.FILE_HASH_CODE)
+              .from(LOAD_CONTROL)
+              .where(LOAD_CONTROL.FILE_HASH_CODE.eq(hash))
+              .fetchOptional()
+              .map(r -> r.get(LOAD_CONTROL.FILE_HASH_CODE))
+              .isEmpty();
   }
 
   private Try<Statement> safeActionFunction(Statement statement) {
