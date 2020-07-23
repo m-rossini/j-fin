@@ -39,7 +39,6 @@ import java.util.Optional;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.fail;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -69,7 +68,6 @@ public class NotOkStatementLoaderTest {
     fileSystem = Jimfs.newFileSystem(Configuration.windows());
 
   }
-
 
   @AfterAll
   public static void tear_down() {
@@ -280,7 +278,8 @@ public class NotOkStatementLoaderTest {
     assertThat(load._1().isPresent(), is(equalTo(true)));
     assertThat(load._1().get(), instanceOf(DataAccessException.class));
     assertThat(load._1().get().getCause(), instanceOf(PSQLException.class));
-    assertThat(load._1().get().getCause().getMessage(), is(equalTo("ERROR: value too long for type character varying(15)")));
+    assertThat(load._1().get().getCause().getMessage(),
+               is(equalTo("ERROR: value too long for type character varying(15)")));
     assertThat(load._2(), is(Optional.empty()));
 
     assertThat(getStatementCounter(), is(0));

@@ -52,6 +52,21 @@ public class LoadControlActions {
     return controlId;
   }
 
+  public Try<String> tryCanInsert(String hash) {
+    return Try.of(() -> canInsert(hash))
+              .filter(b -> b)
+              .map(b -> hash);
+  }
+
+  private boolean canInsert(String hash) {
+    return ctx.selectDistinct(LOAD_CONTROL.FILE_HASH_CODE)
+              .from(LOAD_CONTROL)
+              .where(LOAD_CONTROL.FILE_HASH_CODE.eq(hash))
+              .fetchOptional()
+              .map(r -> r.get(LOAD_CONTROL.FILE_HASH_CODE))
+              .isEmpty();
+  }
+
   public Try<Integer> tryUpdateLoadControl(Integer controlId, StatementSummary ss) {
     return Try.of(() -> performUpdate(controlId, ss))
               .onFailure(e -> LOG.warn("Failed to update row into load control", e));

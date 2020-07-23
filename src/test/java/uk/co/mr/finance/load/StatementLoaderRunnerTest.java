@@ -3,9 +3,7 @@ package uk.co.mr.finance.load;
 import com.google.common.jimfs.Configuration;
 import com.google.common.jimfs.Jimfs;
 import io.vavr.Tuple2;
-import io.vavr.control.Either;
 import liquibase.exception.LiquibaseException;
-import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import uk.co.mr.finance.exception.LoaderException;
+import uk.co.mr.finance.runner.StatementLoaderRunner;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -25,8 +24,6 @@ import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.Collection;
-import java.util.List;
 import java.util.Optional;
 
 import static org.hamcrest.CoreMatchers.equalTo;

@@ -1,4 +1,4 @@
-package uk.co.mr.finance.load;
+package uk.co.mr.finance.runner;
 
 import io.vavr.Tuple2;
 import io.vavr.control.Try;
@@ -7,6 +7,10 @@ import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
 import uk.co.mr.finance.domain.Statement;
+import uk.co.mr.finance.load.DatabaseManager;
+import uk.co.mr.finance.load.FileManager;
+import uk.co.mr.finance.load.StatementLoader;
+import uk.co.mr.finance.load.StatementSummary;
 
 import java.nio.file.Path;
 import java.sql.Connection;
