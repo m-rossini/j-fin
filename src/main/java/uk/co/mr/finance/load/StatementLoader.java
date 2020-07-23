@@ -1,13 +1,11 @@
 package uk.co.mr.finance.load;
 
 import io.vavr.Tuple2;
-import io.vavr.collection.Iterator;
 import io.vavr.collection.Seq;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
 import io.vavr.control.Validation;
 import org.jooq.DSLContext;
-import org.jooq.Record1;
 import org.jooq.SQLDialect;
 import org.jooq.impl.DSL;
 import org.slf4j.Logger;
@@ -32,14 +30,12 @@ import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.reducing;
 import static java.util.stream.Collectors.teeing;
 import static java.util.stream.Collectors.toList;
-import static uk.co.mr.finance.db.Tables.LOAD_CONTROL;
-import static uk.co.mr.finance.db.Tables.STATEMENT_DATA;
 
 public class StatementLoader implements DataLoader<Statement, DoubleSummaryStatistics> {
   private static final Logger LOG = LoggerFactory.getLogger(StatementLoader.class);
 
-  private final DSLContext ctx;
   private final LoadControlActions loadControlActions;
+  private final StatementlActions statementActions;
   private Savepoint savePoint;
   private final FileManager fileManager;
   private final DatabaseManager dbManager;
@@ -53,41 +49,13 @@ public class StatementLoader implements DataLoader<Statement, DoubleSummaryStati
 
     this.fileManager = fileManager;
 
-    ctx = dbManager.getConnection()
-                   .map(c -> DSL.using(c, SQLDialect.POSTGRES))
-                   .getOrElseThrow(() -> new IllegalArgumentException("Connection is not created"));
+    DSLContext ctx = dbManager.getConnection()
+                              .map(c -> DSL.using(c, SQLDialect.POSTGRES))
+                              .getOrElseThrow(() -> new IllegalArgumentException("Connection is not created"));
 
-    loadControlActions = new LoadControlActions(this.ctx);
-  }
-
-  private Try<Integer> openLoadControl(Path path) {
-    return fileManager.mayHashFile(path)
-                      .onFailure(t -> LOG.error("Error trying to read file", t))
-                      .flatMap(this::tryCanInsert)
-                      .flatMap(hash -> loadControlActions.tryInsertLoadControl(path.toAbsolutePath().toString(), hash))
-                      .peek(id -> dbManager.safeCommit());
-  }
-
-  private void printError(String errMsg, List<Throwable> errorList) {
-    errorList.forEach(t -> LOG.error(errMsg, t));
-  }
-
-  private Tuple2<List<Throwable>, List<Statement>> collectStatements(Stream<? extends Validation<Seq<Throwable>, Statement>> v) {
-    return v.collect(teeing(filtering(Validation::isInvalid,
-                                      flatMapping(t -> t.getError().toJavaList().stream(), toList())),
-                            filtering(Validation::isValid,
-                                      mapping(Validation::get, toList())),
-                            Tuple2::new));
-  }
-
-  private Tuple2<List<Throwable>, Optional<StatementSummary>> collectResults(Stream<? extends Try<Statement>> statementsStream) {
-    return statementsStream.collect(
-        teeing(
-            filtering(Try::isFailure, mapping(Try::getCause, toList())),
-            filtering(Try::isSuccess, mapping(Try::get,
-                                              mapping(StatementSummary::fromStatement,
-                                                      reducing(StatementSummary::merge)))),
-            Tuple2::new));
+    //TODO Inject both in constructor
+    loadControlActions = new LoadControlActions(ctx);
+    statementActions = new StatementlActions(ctx);
   }
 
   @Override
@@ -111,7 +79,7 @@ public class StatementLoader implements DataLoader<Statement, DoubleSummaryStati
                       .peek(u -> handleThrowable(u._1(), hasIntermediateErrors, ERR_MSG_REC_PRO))
                       .map(Tuple2::_2)
                       .map(Option::ofOptional)
-                      .peek(o -> o.peek(ss -> tryReorderData()))
+                      .peek(o -> o.peek(ss -> statementActions.tryReorderData()))
                       .peek(o -> o.peek(s -> dbManager.safeCommit()))
                       .map(o -> o.getOrElse(StatementSummary.DEFAULT_STATEMENT));
 
@@ -136,6 +104,36 @@ public class StatementLoader implements DataLoader<Statement, DoubleSummaryStati
                         results.toJavaOptional().filter(ss -> ss != StatementSummary.DEFAULT_STATEMENT));
   }
 
+  private Try<Integer> openLoadControl(Path path) {
+    return fileManager.mayHashFile(path)
+                      .onFailure(t -> LOG.error("Error trying to read file", t))
+                      .flatMap(loadControlActions::tryCanInsert)
+                      .flatMap(hash -> loadControlActions.tryInsertLoadControl(path.toAbsolutePath().toString(), hash))
+                      .peek(id -> dbManager.safeCommit());
+  }
+
+  private Tuple2<List<Throwable>, List<Statement>> collectStatements(Stream<? extends Validation<Seq<Throwable>, Statement>> v) {
+    return v.collect(teeing(filtering(Validation::isInvalid,
+                                      flatMapping(t -> t.getError().toJavaList().stream(), toList())),
+                            filtering(Validation::isValid,
+                                      mapping(Validation::get, toList())),
+                            Tuple2::new));
+  }
+
+  private void printError(String errMsg, List<Throwable> errorList) {
+    errorList.forEach(t -> LOG.error(errMsg, t));
+  }
+
+  private Tuple2<List<Throwable>, Optional<StatementSummary>> collectResults(Stream<? extends Try<Statement>> statementsStream) {
+    return statementsStream.collect(
+        teeing(
+            filtering(Try::isFailure, mapping(Try::getCause, toList())),
+            filtering(Try::isSuccess, mapping(Try::get,
+                                              mapping(StatementSummary::fromStatement,
+                                                      reducing(StatementSummary::merge)))),
+            Tuple2::new));
+  }
+
   private void handleThrowable(List<Throwable> errorList,
                                AtomicReference<? super Throwable> hasIntermediateErrors,
                                String message) {
@@ -149,32 +147,12 @@ public class StatementLoader implements DataLoader<Statement, DoubleSummaryStati
   private List<Try<Statement>> processStatements(Stream<Statement> statements) {
     LOG.info("About to to insert into statements table");
     return statements.peek(s -> LOG.info("Processing Statement:[{}]", s))
-                     .map(this::safeActionFunction)
+                     .map(statementActions::tryInsertIntoStatement)
                      .peek(tryOf -> LOG.info("Result of insertion of statement:[{}]", tryOf))
                      .map(this::savePointOrRollback)
                      .collect(toList());
   }
 
-  //TODO move can insert methods to load control
-  private Try<String> tryCanInsert(String hash) {
-    return Try.of(() -> canInsert(hash))
-              .filter(b -> b)
-              .map(b -> hash);
-  }
-
-  private boolean canInsert(String hash) {
-    return ctx.selectDistinct(LOAD_CONTROL.FILE_HASH_CODE)
-              .from(LOAD_CONTROL)
-              .where(LOAD_CONTROL.FILE_HASH_CODE.eq(hash))
-              .fetchOptional()
-              .map(r -> r.get(LOAD_CONTROL.FILE_HASH_CODE))
-              .isEmpty();
-  }
-
-  private Try<Statement> safeActionFunction(Statement statement) {
-    return Try.of(() -> insertIntoStatement(statement))
-              .onFailure(t -> LOG.error("Failed to insert into statement table"));
-  }
 
   private Try<Statement> savePointOrRollback(Try<Statement> tryStatement) {
     Consumer<Throwable> errorMessage =
@@ -195,46 +173,4 @@ public class StatementLoader implements DataLoader<Statement, DoubleSummaryStati
                          LOG.info("Save point set to:[{}]", savePoint);
                        });
   }
-
-  private Statement insertIntoStatement(Statement statement) {
-    Integer statementId =
-        ctx.insertInto(STATEMENT_DATA)
-           .set(STATEMENT_DATA.TRANSACTION_ORDER, (Integer) null)
-           .set(STATEMENT_DATA.STATEMENT_DATE, statement.transactionDate())
-           .set(STATEMENT_DATA.TRANSACTION_TYPE, statement.transactionTypeCode())
-           .set(STATEMENT_DATA.SORT_CODE, statement.sortCode())
-           .set(STATEMENT_DATA.ACCOUNT_ID, statement.accountId())
-           .set(STATEMENT_DATA.TRANSACTION_DESCRIPTION, statement.transactionDescription())
-           .set(STATEMENT_DATA.TRANSACTION_AMOUNT, statement.transactionAmount())
-           .set(STATEMENT_DATA.TOTAL_BALANCE, statement.totalBalance())
-           .returningResult(STATEMENT_DATA.STATEMENT_ID)
-           .fetchOne()
-           .into(Integer.class);
-
-    return statement.withStatementId(statementId);
-  }
-
-  private int tryReorderData() {
-    //TODO Use windowing functions
-    return Try.of(() -> ctx.selectFrom(STATEMENT_DATA)
-                           .orderBy(STATEMENT_DATA.STATEMENT_DATE,
-                                    STATEMENT_DATA.STATEMENT_ID.desc())
-                           .fetch())
-              .onFailure(t -> LOG.warn("Failed to select from STATEMENT_DATA", t))
-              .map(Iterator::ofAll)
-              .getOrElse(Iterator::empty)
-              .map(r -> r.getValue(STATEMENT_DATA.STATEMENT_ID))
-              .zipWithIndex()
-              .map(pair -> updateStatementOrder(pair._1(), pair._2()))
-              .count(integer -> true);
-  }
-
-  private int updateStatementOrder(Integer transactionId, Integer order) {
-    return ctx.update(STATEMENT_DATA)
-              .set(STATEMENT_DATA.TRANSACTION_ORDER, order + 1)
-              .where(STATEMENT_DATA.STATEMENT_ID.eq(transactionId))
-              .execute();
-  }
-
-
 }
