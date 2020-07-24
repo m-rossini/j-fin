@@ -20,6 +20,8 @@ import uk.co.mr.finance.domain.LoadControl;
 import uk.co.mr.finance.domain.Statement;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.MathContext;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -28,6 +30,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -86,34 +89,34 @@ public class AllOkStatementLoaderTest {
   private static Collection<Path> createFilesToLoad() throws IOException {
     String file1Content = """
         Transaction Date,Transaction Type,Sort Code,Account Number,Transaction Description,Debit Amount,Credit Amount,Balance
-        29/04/2020,DD,'11-22-33,87651234,NATIONAL TRUST FOR,114.00,,6941.03
-        29/04/2020,DD,'11-22-33,87651234,COUNTRYWIDE PS HH,22.69,,7055.03
-        28/04/2020,DEB,'11-22-33,87651234,Transferwise Ltd,500.00,,7077.72
-        28/04/2020,DD,'11-22-33,87651234,E.ON,76.00,,7577.72
-        27/04/2020,SO,'11-22-33,87651234,XXX YYY (RE,500.00,,7653.72
-        27/04/2020,DEB,'11-22-33,87651234,AMZNMKTPLACE AMAZO,19.99,,8153.72
+        29/04/2020,DD,'11-22-33,87651234,NATIONAL TRUST FOR,7,,76
+        29/04/2020,DD,'11-22-33,87651234,COUNTRYWIDE PS HH,6,,83
+        28/04/2020,DEB,'11-22-33,87651234,Transferwise Ltd,5,,89
+        28/04/2020,DD,'11-22-33,87651234,E.ON,3,,94
+        27/04/2020,SO,'11-22-33,87651234,XXX YYY (RE,2,,97
+        27/04/2020,DEB,'11-22-33,87651234,AMZNMKTPLACE AMAZO,1,,99
         """;
     Path path1 = UtilForTest.createFile(fileSystem, "extrato_01.csv", file1Content);
 
     String file2Content = """
         Transaction Date,Transaction Type,Sort Code,Account Number,Transaction Description,Debit Amount,Credit Amount,Balance
-        11/05/2020,DEB,'11-22-33,87651234,LIDL GB GLASGOW,51.35,,5489.85
-        11/05/2020,DEB,'11-22-33,87651234,NOWTV.COM/BILLINGH,7.19,,5541.20
-        07/05/2020,DEB,'11-22-33,87651234,AMZNMKTPLACE AMAZO,49.97,,5548.39
-        07/05/2020,DEB,'11-22-33,87651234,NETFLIX.COM,8.99,,5598.36
-        06/05/2020,DEB,'11-22-33,87651234,WM MORRISONS STORE,62.17,,5607.35
-        06/05/2020,DD,'11-22-33,87651234,SKY DIGITAL,54.13,,5669.52
-        05/05/2020,DEB,'11-22-33,87651234,AMAZON.CO.UK*CS8LJ,40.00,,5723.65
-        05/05/2020,DD,'11-22-33,87651234,H3G,20.50,,5763.65                
+        11/05/2020,DEB,'11-22-33,87651234,LIDL GB GLASGOW,16,,15
+        11/05/2020,DEB,'11-22-33,87651234,NOWTV.COM/BILLINGH,15,,31
+        07/05/2020,DEB,'11-22-33,87651234,AMZNMKTPLACE AMAZO,14,,46
+        07/05/2020,DEB,'11-22-33,87651234,NETFLIX.COM,13,,60
+        06/05/2020,DEB,'11-22-33,87651234,WM MORRISONS STORE,,30,73
+        06/05/2020,DD,'11-22-33,87651234,SKY DIGITAL,12,,43
+        05/05/2020,DEB,'11-22-33,87651234,AMAZON.CO.UK*CS8LJ,11,,55
+        05/05/2020,DD,'11-22-33,87651234,H3G,10,,66                
                         """;
     Path path2 = UtilForTest.createFile(fileSystem, "extrato_02.csv", file2Content);
 
     String file3Content = """
         Transaction Date,Transaction Type,Sort Code,Account Number,Transaction Description,Debit Amount,Credit Amount,Balance
-        18/03/2020,DEB,'11-22-33,87651234,LIDL GB GLASGOW,29.51,,3812.09
-        18/03/2020,DD,'11-22-33,87651234,PURE GYM LTD,18.99,,3841.60
-        17/03/2020,DEB,'11-22-33,87651234,MRH ROAD TO THE IS,39.98,,3860.59
-        16/03/2020,DEB,'11-22-33,87651234,WM MORRISONS STORE,50.47,,3900.57                                
+        18/03/2020,DEB,'11-22-33,87651234,LIDL GB GLASGOW,19,,100
+        18/03/2020,DD,'11-22-33,87651234,PURE GYM LTD,6,,119
+        17/03/2020,DEB,'11-22-33,87651234,MRH ROAD TO THE IS,,20,125
+        16/03/2020,DEB,'11-22-33,87651234,WM MORRISONS STORE,10,,105                                
                         """;
     Path path3 = UtilForTest.createFile(fileSystem, "extrato_03.csv", file3Content);
 
@@ -141,9 +144,54 @@ public class AllOkStatementLoaderTest {
   }
 
   @Test
-  @DisplayName("Ensure all rows are loaded")
-  public void check_row_counter() {
-    assertThat(getCounter(), is(18));
+  @DisplayName("Ensure Statement Data is correct")
+  public void ensure_statement_data_is_correct() {
+    List<Statement> statements = ctx.selectFrom(STATEMENT_DATA)
+                                    .fetch()
+                                    .into(Statement.class);
+
+    assertThat(18, is(equalTo(statements.size())));
+
+    Optional<Integer> minStatementId = statements.stream().map(Statement::statementId).min(Integer::compareTo);
+    assertThat(minStatementId.filter(b -> b == 1).isPresent(), is(equalTo(true)));
+
+    Optional<Integer> maxStatementId = statements.stream().map(Statement::statementId).max(Integer::compareTo);
+    assertThat(maxStatementId.filter(b -> b == 18).isPresent(), is(equalTo(true)));
+
+    Optional<Integer> minTransactionOrder = statements.stream().map(Statement::transactionOrder).min(Integer::compareTo);
+    assertThat(minTransactionOrder.filter(b -> b == 1).isPresent(), is(equalTo(true)));
+
+    Optional<Integer> maxTransactionOrder = statements.stream().map(Statement::transactionOrder).max(Integer::compareTo);
+    assertThat(maxTransactionOrder.filter(b -> b == 18).isPresent(), is(equalTo(true)));
+
+    Optional<LocalDate> minStatementDate = statements.stream().map(Statement::transactionDate).min(LocalDate::compareTo);
+    assertThat(minStatementDate.filter(b -> b.compareTo(LocalDate.of(2020,03,16)) == 0).isPresent(), is(equalTo(true)));
+
+    Optional<LocalDate> maxStatementDate = statements.stream().map(Statement::transactionDate).max(LocalDate::compareTo);
+    assertThat(maxStatementDate.filter(b -> b.compareTo(LocalDate.of(2020,05,11)) == 0).isPresent(), is(equalTo(true)));
+
+    Optional<BigDecimal> minBalance = statements.stream().map(Statement::totalBalance).min(BigDecimal::compareTo);
+    assertThat(minBalance.filter(b -> b.compareTo(new BigDecimal("15")) == 0).isPresent(), is(equalTo(true)));
+
+    Optional<BigDecimal> maxBalance = statements.stream().map(Statement::totalBalance).max(BigDecimal::compareTo);
+    assertThat(maxBalance.filter(b -> b.compareTo(new BigDecimal("125")) == 0).isPresent(), is(equalTo(true)));
+
+    Map<String, Long> transactionTypes = statements.stream().map(Statement::transactionTypeCode).collect(Collectors.groupingBy(k -> k, Collectors.counting()));
+    assertThat(transactionTypes.size(), is(equalTo(3)));
+    assertThat(transactionTypes.get("DD"), is(equalTo(6L)));
+    assertThat(transactionTypes.get("DEB"), is(equalTo(11L)));
+    assertThat(transactionTypes.get("SO"), is(equalTo(1L)));
+
+    Map<String, Long> sortCodes = statements.stream().map(Statement::sortCode).collect(Collectors.groupingBy(k -> k, Collectors.counting()));
+    assertThat(sortCodes.size(), is(equalTo(1)));
+    assertThat(sortCodes.values().stream().mapToLong(l -> l).sum(), is(equalTo(18L)));
+
+    Map<String, Long> accountIds = statements.stream().map(Statement::accountId).collect(Collectors.groupingBy(k -> k, Collectors.counting()));
+    assertThat(accountIds.size(), is(equalTo(1)));
+    assertThat(accountIds.values().stream().mapToLong(l -> l).sum(), is(equalTo(18L)));
+
+    Optional<BigDecimal> totalTransactionAmount = statements.stream().map(Statement::transactionAmount).reduce(BigDecimal::add);
+    assertThat(totalTransactionAmount, is(equalTo(Optional.of(new BigDecimal("-100.00")))));
   }
 
   @Test
