@@ -43,19 +43,12 @@ public class StatementLoader implements DataLoader<Statement, DoubleSummaryStati
   public static final String ERR_MSG_REC_GEN = "This exception occurred while generating statements records";
 
   //TODO Replace JOOQ by R2DBC
-  public StatementLoader(DatabaseManager dbManager, FileManager fileManager) {
-    this.dbManager = dbManager;
+  public StatementLoader(DatabaseManager dbManager, FileManager fileManager, LoadControlActions loadControlActions, StatementlActions statementActions) {
     dbManager.safeSetAutoCommitOff();
-
+    this.dbManager = dbManager;
     this.fileManager = fileManager;
-
-    DSLContext ctx = dbManager.getConnection()
-                              .map(c -> DSL.using(c, SQLDialect.POSTGRES))
-                              .getOrElseThrow(() -> new IllegalArgumentException("Connection is not created"));
-
-    //TODO Inject both in constructor
-    loadControlActions = new LoadControlActions(ctx);
-    statementActions = new StatementlActions(ctx);
+    this.loadControlActions = loadControlActions;
+    this.statementActions = statementActions;
   }
 
   @Override

@@ -2,6 +2,9 @@ package uk.co.mr.finance.runner;
 
 import io.vavr.Tuple2;
 import io.vavr.control.Try;
+import org.jooq.DSLContext;
+import org.jooq.SQLDialect;
+import org.jooq.impl.DSL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
@@ -9,8 +12,10 @@ import picocli.CommandLine.Option;
 import uk.co.mr.finance.domain.Statement;
 import uk.co.mr.finance.load.DatabaseManager;
 import uk.co.mr.finance.load.FileManager;
+import uk.co.mr.finance.load.LoadControlActions;
 import uk.co.mr.finance.load.StatementLoader;
 import uk.co.mr.finance.load.StatementSummary;
+import uk.co.mr.finance.load.StatementlActions;
 
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -59,33 +64,42 @@ public class StatementLoaderRunner implements Callable<Tuple2<Optional<Throwable
     Try<Connection> connection = databaseManager.getConnection();
     if (connection.isFailure()) {
       return new Tuple2<>(Optional.of(connection.getCause()),
-                        Optional.empty());
+                          Optional.empty());
     }
 
-    Try<Tuple2<Optional<Throwable>, Optional<StatementSummary>>> summaries =
-        connection.map(c -> new StatementLoader(databaseManager, new FileManager()))
-                  .map(loader -> loader.load(toLoadPath, Statement.transformToStatement()));
 
-    connection.peek(c -> databaseManager.safeClose());
+    try (DSLContext ctx = databaseManager.getConnection()
+                                         .map(c -> DSL.using(c, SQLDialect.POSTGRES))
+                                         .getOrElseThrow(() -> new IllegalArgumentException("Connection is not created"))) {
 
-    Duration duration = Duration.between(is, Instant.now());
+      Try<Tuple2<Optional<Throwable>, Optional<StatementSummary>>> summaries =
+          connection.map(c -> new StatementLoader(databaseManager,
+                                                  new FileManager(),
+                                                  new LoadControlActions(ctx),
+                                                  new StatementlActions(ctx)))
+                    .map(loader -> loader.load(toLoadPath, Statement.transformToStatement()));
 
-    String message = """
-        Total Time: [%s]
-        Exception Type: [%s]
-        Exception Message: [%s]
-        Summary: [%s]
-        """
-        .formatted(duration.toString(),
-                   summaries.get()._1().map(t -> t.getClass().getCanonicalName()).orElse("No exception occurred"),
-                   summaries.get()._1().map(Throwable::getMessage).orElse("No exception occurred"),
-                   summaries.get()._2().map(Object::toString).orElse("No summary was produced"));
-    summaries.peek(s -> LOG.info("Total Time:[{}]\nValue returned from load:[{}]", duration, s));
+      connection.peek(c -> databaseManager.safeClose());
 
-    return summaries.peek(s -> LOG.info(message))
-                    .getOrElseThrow(l -> {
-                      throw new IllegalArgumentException(l);
-                    });
+      Duration duration = Duration.between(is, Instant.now());
+
+      String message = """
+          Total Time: [%s]
+          Exception Type: [%s]
+          Exception Message: [%s]
+          Summary: [%s]
+          """
+          .formatted(duration.toString(),
+                     summaries.get()._1().map(t -> t.getClass().getCanonicalName()).orElse("No exception occurred"),
+                     summaries.get()._1().map(Throwable::getMessage).orElse("No exception occurred"),
+                     summaries.get()._2().map(Object::toString).orElse("No summary was produced"));
+      summaries.peek(s -> LOG.info("Total Time:[{}]\nValue returned from load:[{}]", duration, s));
+
+      return summaries.peek(s -> LOG.info(message))
+                      .getOrElseThrow(l -> {
+                        throw new IllegalArgumentException(l);
+                      });
+    }
   }
 
 }
