@@ -90,6 +90,8 @@ public class NotOkStatementLoaderTest {
     connection.close();
   }
 
+  //TODO Add checks to statement table
+
   @Test
   @DisplayName("Load data that is too large")
   public void test_large_data() throws IOException {
@@ -105,16 +107,17 @@ public class NotOkStatementLoaderTest {
     StatementLoader loader = new StatementLoader(databaseManager, new FileManager());
     Tuple2<Optional<Throwable>, Optional<StatementSummary>> load = loader.load(path, Statement.transformToStatement());
 
+    Files.delete(path);
+
     assertNotNull(load);
     assertThat(load._1().isPresent(), is(equalTo(true)));
     assertThat(load._1().get(), instanceOf(DataAccessException.class));
     assertThat(load._1().get().getCause(), instanceOf(PSQLException.class));
-    assertThat(load._1().get().getCause().getMessage(),
-               is(equalTo("ERROR: value too long for type character varying(15)")));
+    assertThat(load._1().get().getCause().getMessage(), is(equalTo("ERROR: value too long for type character varying(15)")));
 
     assertThat(load._2(), is(Optional.empty()));
 
-    Files.delete(path);
+    checkLoadControl(1, 1, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(0), 0, false, path, "bfcc0fae96900c92a252ecb22ce1e432");
   }
 
   @Test
@@ -133,6 +136,8 @@ public class NotOkStatementLoaderTest {
     Tuple2<Optional<Throwable>, Optional<StatementSummary>> load =
         loader.load(path, Statement.transformToStatement());
 
+    Files.delete(path);
+
     assertThat(getStatementCounter(), is(equalTo(0)));
     assertThat(load._1().isPresent(), is(equalTo(true)));
     assertThat(load._1().filter(NumberFormatException.class::isInstance).isPresent(), is(equalTo(true)));
@@ -145,7 +150,7 @@ public class NotOkStatementLoaderTest {
 
     assertThat(load._2().isEmpty(), is(equalTo(true)));
 
-    Files.delete(path);
+    checkLoadControl(1, 1, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(0), 0, false, path, "baf8463fccca649d1a0bf127b4d6d2fc");
   }
 
   @Test
@@ -164,6 +169,7 @@ public class NotOkStatementLoaderTest {
     Tuple2<Optional<Throwable>, Optional<StatementSummary>> load =
         loader.load(path, Statement.transformToStatement());
 
+    Files.delete(path);
 
     assertThat(load._1().isPresent(), is(equalTo(true)));
 
@@ -174,7 +180,7 @@ public class NotOkStatementLoaderTest {
 
     assertThat(load._2(), is(Optional.empty()));
 
-    Files.delete(path);
+    checkLoadControl(1, 1, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(0), 0, false, path, "62889ee3d54bc2be72e3a5ad735957e");
   }
 
   @Test
@@ -193,6 +199,7 @@ public class NotOkStatementLoaderTest {
     StatementLoader loader = new StatementLoader(databaseManager, new FileManager());
     StatementSummary summary = loader.load(path, Statement.transformToStatement())._2()
                                      .orElseThrow(() -> new LoaderException("Should have a summary"));
+    Files.delete(path);
 
     assertThat(summary.getCount(), is(1L));
     assertThat(summary.minDate(), is(LocalDate.of(2020, 4, 29)));
@@ -200,7 +207,7 @@ public class NotOkStatementLoaderTest {
     assertThat(summary.totalAmount(), is(new BigDecimal("-114.00")));
     assertThat(getStatementCounter(), is(1));
 
-    Files.delete(path);
+    checkLoadControl(1, 1, LocalDate.of(2020, 04, 29), LocalDate.of(2020, 04, 29), 1, false, path, "cc21afc68732dee812b2a3e010272ad");
   }
 
   @Test
@@ -220,6 +227,7 @@ public class NotOkStatementLoaderTest {
     StatementLoader loader = new StatementLoader(databaseManager, new FileManager());
     StatementSummary summary = loader.load(path, Statement.transformToStatement())._2()
                                      .orElseThrow(() -> new LoaderException("Should have a summary"));
+    Files.delete(path);
 
     assertThat(summary.getCount(), is(2L));
     assertThat(summary.minDate(), is(LocalDate.of(2020, 4, 2)));
@@ -227,7 +235,7 @@ public class NotOkStatementLoaderTest {
     assertThat(summary.totalAmount(), is(new BigDecimal("-60.00")));
     assertThat(getStatementCounter(), is(2));
 
-    Files.delete(path);
+    checkLoadControl(1, 1, LocalDate.of(2020, 04, 02), LocalDate.of(2020, 04, 03), 2, false, path, "4c4251ff0e182e9c28f3ef84ebd21fd0");
   }
 
   @Test
@@ -247,6 +255,7 @@ public class NotOkStatementLoaderTest {
     StatementLoader loader = new StatementLoader(databaseManager, new FileManager());
     StatementSummary summary = loader.load(path, Statement.transformToStatement())._2()
                                      .orElseThrow(() -> new LoaderException("Should have a summary"));
+    Files.delete(path);
 
     assertThat(summary.getCount(), is(1L));
     assertThat(summary.minDate(), is(LocalDate.of(2020, 4, 3)));
@@ -254,7 +263,7 @@ public class NotOkStatementLoaderTest {
     assertThat(summary.totalAmount(), is(new BigDecimal("-40.00")));
     assertThat(getStatementCounter(), is(1));
 
-    Files.delete(path);
+    checkLoadControl(1, 1, LocalDate.of(2020, 04, 03), LocalDate.of(2020, 04, 03), 1, false, path, "6c2b65d0bc51f75fb23a5fe50c96994");
   }
 
   @Test
@@ -278,22 +287,34 @@ public class NotOkStatementLoaderTest {
     assertThat(load._1().isPresent(), is(equalTo(true)));
     assertThat(load._1().get(), instanceOf(DataAccessException.class));
     assertThat(load._1().get().getCause(), instanceOf(PSQLException.class));
-    assertThat(load._1().get().getCause().getMessage(),
-               is(equalTo("ERROR: value too long for type character varying(15)")));
+    assertThat(load._1().get().getCause().getMessage(), is(equalTo("ERROR: value too long for type character varying(15)")));
     assertThat(load._2(), is(Optional.empty()));
 
     assertThat(getStatementCounter(), is(0));
 
+    checkLoadControl(1, 1, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(0), 0, false, path, "32c08cca3540dbe2fbaa7ee9482570c0");
+  }
+
+  private void checkLoadControl(int loadControlRows,
+                                int controlRowId,
+                                LocalDate smallestDate,
+                                LocalDate greatestDate,
+                                int totalRecords,
+                                boolean isThereLoadInProgress,
+                                Path filePath,
+                                String fileHashCode) {
     List<LoadControl> controls = getLoadControl();
-    assertThat(controls.size(), is(equalTo(1)));
+    assertThat(controls.size(), is(equalTo(loadControlRows)));
 
     LoadControl loadControl = controls.get(0);
-    assertThat(loadControl.controlId(), is(equalTo(1)));
-    assertThat(loadControl.fileHash(), is(equalTo("32c08cca3540dbe2fbaa7ee9482570c0")));
-    assertThat(loadControl.fileName(), is(equalTo(path.toAbsolutePath().toString())));
-    //TODO FINISH Testing all Columns
-    assertThat(loadControl.loadInProgress(), is(equalTo(false)));
-
+    assertThat(loadControl.controlId(), is(equalTo(controlRowId)));
+    assertThat(loadControl.loadDate(), is(equalTo(LocalDate.now())));
+    assertThat(loadControl.smallestDate(), is(equalTo(smallestDate)));
+    assertThat(loadControl.greatestDate(), is(equalTo(greatestDate)));
+    assertThat(loadControl.loadedRecords(), is(equalTo(totalRecords)));
+    assertThat(loadControl.loadInProgress(), is(equalTo(isThereLoadInProgress)));
+    assertThat(loadControl.fileName(), is(equalTo(filePath.toAbsolutePath().toString())));
+    assertThat(loadControl.fileHash(), is(equalTo(fileHashCode)));
   }
 
   private List<LoadControl> getLoadControl() {
@@ -307,3 +328,4 @@ public class NotOkStatementLoaderTest {
     return ctx.selectCount().from(STATEMENT_DATA).fetchOne(0, int.class);
   }
 }
+
