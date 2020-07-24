@@ -21,7 +21,6 @@ import uk.co.mr.finance.domain.Statement;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.math.MathContext;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -81,7 +80,12 @@ public class AllOkStatementLoaderTest {
 
     Collection<Path> filesToLoad = createFilesToLoad();
 
-    StatementLoader loader = new StatementLoader(databaseManager, new FileManager());
+    DSLContext ctx =
+        databaseManager.getConnection()
+                       .map(c -> DSL.using(c, SQLDialect.POSTGRES))
+                       .getOrElseThrow(() -> new IllegalArgumentException("Connection is not created"));
+
+    StatementLoader loader = new StatementLoader(databaseManager, new FileManager(), new LoadControlActions(ctx), new StatementlActions(ctx));
     pairs = loadFiles(loader, filesToLoad);
     pairs.forEach(p -> LOG.info("Results:[{}]:", p));
   }
@@ -165,10 +169,10 @@ public class AllOkStatementLoaderTest {
     assertThat(maxTransactionOrder.filter(b -> b == 18).isPresent(), is(equalTo(true)));
 
     Optional<LocalDate> minStatementDate = statements.stream().map(Statement::transactionDate).min(LocalDate::compareTo);
-    assertThat(minStatementDate.filter(b -> b.compareTo(LocalDate.of(2020,03,16)) == 0).isPresent(), is(equalTo(true)));
+    assertThat(minStatementDate.filter(b -> b.compareTo(LocalDate.of(2020, 03, 16)) == 0).isPresent(), is(equalTo(true)));
 
     Optional<LocalDate> maxStatementDate = statements.stream().map(Statement::transactionDate).max(LocalDate::compareTo);
-    assertThat(maxStatementDate.filter(b -> b.compareTo(LocalDate.of(2020,05,11)) == 0).isPresent(), is(equalTo(true)));
+    assertThat(maxStatementDate.filter(b -> b.compareTo(LocalDate.of(2020, 05, 11)) == 0).isPresent(), is(equalTo(true)));
 
     Optional<BigDecimal> minBalance = statements.stream().map(Statement::totalBalance).min(BigDecimal::compareTo);
     assertThat(minBalance.filter(b -> b.compareTo(new BigDecimal("15")) == 0).isPresent(), is(equalTo(true)));
@@ -176,7 +180,8 @@ public class AllOkStatementLoaderTest {
     Optional<BigDecimal> maxBalance = statements.stream().map(Statement::totalBalance).max(BigDecimal::compareTo);
     assertThat(maxBalance.filter(b -> b.compareTo(new BigDecimal("125")) == 0).isPresent(), is(equalTo(true)));
 
-    Map<String, Long> transactionTypes = statements.stream().map(Statement::transactionTypeCode).collect(Collectors.groupingBy(k -> k, Collectors.counting()));
+    Map<String, Long> transactionTypes =
+        statements.stream().map(Statement::transactionTypeCode).collect(Collectors.groupingBy(k -> k, Collectors.counting()));
     assertThat(transactionTypes.size(), is(equalTo(3)));
     assertThat(transactionTypes.get("DD"), is(equalTo(6L)));
     assertThat(transactionTypes.get("DEB"), is(equalTo(11L)));

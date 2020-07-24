@@ -104,7 +104,7 @@ public class NotOkStatementLoaderTest {
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
     DatabaseManager databaseManager = new DatabaseManager(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new FileManager());
+    StatementLoader loader = new StatementLoader(databaseManager, new FileManager(), new LoadControlActions(ctx), new StatementlActions(ctx));
     Tuple2<Optional<Throwable>, Optional<StatementSummary>> load = loader.load(path, Statement.transformToStatement());
 
     Files.delete(path);
@@ -132,7 +132,7 @@ public class NotOkStatementLoaderTest {
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
     DatabaseManager databaseManager = new DatabaseManager(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new FileManager());
+    StatementLoader loader = new StatementLoader(databaseManager, new FileManager(), new LoadControlActions(ctx), new StatementlActions(ctx));
     Tuple2<Optional<Throwable>, Optional<StatementSummary>> load =
         loader.load(path, Statement.transformToStatement());
 
@@ -165,7 +165,7 @@ public class NotOkStatementLoaderTest {
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
     DatabaseManager databaseManager = new DatabaseManager(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new FileManager());
+    StatementLoader loader = new StatementLoader(databaseManager, new FileManager(), new LoadControlActions(ctx), new StatementlActions(ctx));
     Tuple2<Optional<Throwable>, Optional<StatementSummary>> load =
         loader.load(path, Statement.transformToStatement());
 
@@ -196,7 +196,7 @@ public class NotOkStatementLoaderTest {
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
     DatabaseManager databaseManager = new DatabaseManager(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new FileManager());
+    StatementLoader loader = new StatementLoader(databaseManager, new FileManager(), new LoadControlActions(ctx), new StatementlActions(ctx));
     StatementSummary summary = loader.load(path, Statement.transformToStatement())._2()
                                      .orElseThrow(() -> new LoaderException("Should have a summary"));
     Files.delete(path);
@@ -224,7 +224,7 @@ public class NotOkStatementLoaderTest {
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
     DatabaseManager databaseManager = new DatabaseManager(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new FileManager());
+    StatementLoader loader = new StatementLoader(databaseManager, new FileManager(), new LoadControlActions(ctx), new StatementlActions(ctx));
     StatementSummary summary = loader.load(path, Statement.transformToStatement())._2()
                                      .orElseThrow(() -> new LoaderException("Should have a summary"));
     Files.delete(path);
@@ -252,7 +252,7 @@ public class NotOkStatementLoaderTest {
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
     DatabaseManager databaseManager = new DatabaseManager(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new FileManager());
+    StatementLoader loader = new StatementLoader(databaseManager, new FileManager(), new LoadControlActions(ctx), new StatementlActions(ctx));
     StatementSummary summary = loader.load(path, Statement.transformToStatement())._2()
                                      .orElseThrow(() -> new LoaderException("Should have a summary"));
     Files.delete(path);
@@ -280,7 +280,7 @@ public class NotOkStatementLoaderTest {
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
     DatabaseManager databaseManager = new DatabaseManager(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new FileManager());
+    StatementLoader loader = new StatementLoader(databaseManager, new FileManager(), new LoadControlActions(ctx), new StatementlActions(ctx));
     Tuple2<Optional<Throwable>, Optional<StatementSummary>> load = loader.load(path, Statement.transformToStatement());
     Files.delete(path);
 
