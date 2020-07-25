@@ -14,7 +14,7 @@ import uk.co.mr.finance.load.DatabaseManager;
 import uk.co.mr.finance.load.FileManager;
 import uk.co.mr.finance.load.LoadControlActions;
 import uk.co.mr.finance.load.StatementLoader;
-import uk.co.mr.finance.load.StatementSummary;
+import uk.co.mr.finance.domain.StatementSummary;
 import uk.co.mr.finance.load.StatementlActions;
 
 import java.nio.file.Path;

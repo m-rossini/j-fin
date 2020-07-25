@@ -1,28 +1,16 @@
-package uk.co.mr.finance.load;
+package uk.co.mr.finance.domain;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import uk.co.mr.finance.domain.Statement;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-public class StatementSummary {
+public record StatementSummary(long count, BigDecimal totalAmount, LocalDate minDate, LocalDate maxDate) {
   private static final Logger LOG = LoggerFactory.getLogger(StatementSummary.class);
-  private final long count;
-  private final BigDecimal totalAmount;
-  private final LocalDate minDate;
-  private final LocalDate maxDate;
 
   public static StatementSummary DEFAULT_STATEMENT =
       new StatementSummary(0, BigDecimal.ZERO, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(0));
-
-  private StatementSummary(long count, BigDecimal totalAmount, LocalDate minDate, LocalDate maxDate) {
-    this.count = count;
-    this.totalAmount = totalAmount;
-    this.minDate = minDate;
-    this.maxDate = maxDate;
-  }
 
   public StatementSummary merge(StatementSummary other) {
     LOG.debug("Incoming summary:[{}]", other);

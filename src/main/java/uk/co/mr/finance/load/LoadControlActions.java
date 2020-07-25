@@ -1,12 +1,16 @@
 package uk.co.mr.finance.load;
 
 import io.vavr.control.Try;
+import org.jetbrains.annotations.NotNull;
 import org.jooq.DSLContext;
 import org.jooq.Record;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import uk.co.mr.finance.domain.StatementSummary;
+import uk.co.mr.finance.exception.LoaderException;
 
 import java.time.LocalDate;
+import java.util.Optional;
 
 import static uk.co.mr.finance.db.Tables.LOAD_CONTROL;
 
@@ -48,23 +52,24 @@ public class LoadControlActions {
     ctx.update(LOAD_CONTROL)
        .set(LOAD_CONTROL.LOAD_IN_PROGRESS, false)
        .execute();
-
     return controlId;
   }
 
   public Try<String> tryCanInsert(String hash) {
     return Try.of(() -> canInsert(hash))
-              .filter(b -> b)
-              .map(b -> hash);
+              .flatMap(o -> o.map(fileName -> Try.<String>failure(new LoaderException(String.format("hashCode [%s] already loaded in file:[%s]",
+                                                                                                    hash,
+                                                                                                    fileName))))
+                             .orElse(Try.success(hash)));
+
   }
 
-  private boolean canInsert(String hash) {
-    return ctx.selectDistinct(LOAD_CONTROL.FILE_HASH_CODE)
+  private Optional<String> canInsert(String hash) {
+    return ctx.selectDistinct(LOAD_CONTROL.FILE_NAME)
               .from(LOAD_CONTROL)
               .where(LOAD_CONTROL.FILE_HASH_CODE.eq(hash))
               .fetchOptional()
-              .map(r -> r.get(LOAD_CONTROL.FILE_HASH_CODE))
-              .isEmpty();
+              .map(r -> r.get(LOAD_CONTROL.FILE_NAME));
   }
 
   public Try<Integer> tryUpdateLoadControl(Integer controlId, StatementSummary ss) {

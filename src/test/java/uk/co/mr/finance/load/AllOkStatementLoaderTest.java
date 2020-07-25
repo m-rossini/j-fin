@@ -18,6 +18,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import uk.co.mr.finance.domain.LoadControl;
 import uk.co.mr.finance.domain.Statement;
+import uk.co.mr.finance.domain.StatementSummary;
 
 import java.io.IOException;
 import java.math.BigDecimal;
