@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
+import uk.co.mr.finance.domain.StatementSummary;
 import uk.co.mr.finance.exception.LoaderException;
 import uk.co.mr.finance.runner.StatementLoaderRunner;
 

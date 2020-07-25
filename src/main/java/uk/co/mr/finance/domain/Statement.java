@@ -1,10 +1,12 @@
 package uk.co.mr.finance.domain;
 
+import io.vavr.collection.Array;
 import io.vavr.collection.Seq;
 import io.vavr.control.Try;
 import io.vavr.control.Validation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import uk.co.mr.finance.exception.LoaderException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -29,23 +31,22 @@ public record Statement(Integer statementId,
     return record -> {
       Arrays.stream(record).forEach(s -> LOG.debug("Piece:[{}]", s));
 
-      Validation<Throwable, LocalDate> localDateVal =
-          Try.of(() -> LocalDate.parse(record[0], formatter)).toValidation();
-      TransactionType transactionType = new TransactionType(record[1], "");
-      String sortCode = record[2];
-      String accountId = record[3];
-      String transactionDescription = record[4];
+      if (record.length < 8) {
+        String msg = String.format("Record [%s] does not have all needed fields to be transformed to statement", String.join(",", record));
+        return Validation.invalid(Array.of(new LoaderException(msg)));
+      }
 
-      prepareString(record[5]);
-      Validation<Throwable, BigDecimal> crAmountVal =
-          Try.of(() -> new BigDecimal(prepareString(record[5]))).toValidation();
-      Validation<Throwable, BigDecimal> dbAmountVal =
-          Try.of(() -> new BigDecimal(prepareString(record[6]))).toValidation();
-      Validation<Throwable, BigDecimal> balanceVal =
-          Try.of(() -> new BigDecimal(prepareString(record[7]))).toValidation();
+      Validation<Throwable, LocalDate> localDateVal = Try.of(() -> LocalDate.parse(record[0], formatter)).toValidation();
+      Validation<Throwable, TransactionType> transactionTypeVal = Try.of(() -> new TransactionType(record[1], "")).toValidation();
+      Validation<Throwable, String> sortCodeVal = Try.of(() -> record[2]).toValidation();
+      Validation<Throwable, String> accountIdVal = Try.of(() -> record[3]).toValidation();
+      Validation<Throwable, String> descriptionVal = Try.of(() -> record[4]).toValidation();
+      Validation<Throwable, BigDecimal> crAmountVal = Try.of(() -> new BigDecimal(prepareString(record[5]))).toValidation();
+      Validation<Throwable, BigDecimal> dbAmountVal = Try.of(() -> new BigDecimal(prepareString(record[6]))).toValidation();
+      Validation<Throwable, BigDecimal> balanceVal = Try.of(() -> new BigDecimal(prepareString(record[7]))).toValidation();
 
-      return Validation.combine(localDateVal, dbAmountVal, crAmountVal, balanceVal)
-                       .ap((date, crAmount, dbAmount, balance) ->
+      return Validation.combine(localDateVal, dbAmountVal, crAmountVal, balanceVal, transactionTypeVal, sortCodeVal, accountIdVal, descriptionVal)
+                       .ap((date, crAmount, dbAmount, balance, transactionType, sortCode, accountId, transactionDescription) ->
                                new Statement(
                                    null,
                                    null,

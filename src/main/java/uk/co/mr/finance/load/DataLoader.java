@@ -4,6 +4,7 @@ import io.vavr.Tuple2;
 import io.vavr.collection.Seq;
 import io.vavr.control.Validation;
 import uk.co.mr.finance.domain.Statement;
+import uk.co.mr.finance.domain.StatementSummary;
 
 import java.nio.file.Path;
 import java.util.Optional;

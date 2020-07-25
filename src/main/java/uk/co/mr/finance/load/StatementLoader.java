@@ -5,12 +5,10 @@ import io.vavr.collection.Seq;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
 import io.vavr.control.Validation;
-import org.jooq.DSLContext;
-import org.jooq.SQLDialect;
-import org.jooq.impl.DSL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.co.mr.finance.domain.Statement;
+import uk.co.mr.finance.domain.StatementSummary;
 
 import java.nio.file.Path;
 import java.sql.Savepoint;
@@ -154,16 +152,16 @@ public class StatementLoader implements DataLoader<Statement, DoubleSummaryStati
     return tryStatement.onFailure(errorMessage)
                        .onFailure(t -> {
                          if (null == this.savePoint) {
-                           LOG.info("Save point is null, rolling back everything");
+                           LOG.debug("Save point is null, rolling back everything");
                            dbManager.safeRollback();
                          } else {
-                           LOG.info("Rolling back to save point:[{}]", savePoint);
+                           LOG.debug("Rolling back to save point:[{}]", savePoint);
                            dbManager.safeRollbackTo(this.savePoint);
                          }
                        })
                        .peek(statement -> {
                          this.savePoint = dbManager.safeSetSavePoint().getOrElse((Savepoint) null);
-                         LOG.info("Save point set to:[{}]", savePoint);
+                         LOG.debug("Save point set to:[{}]", savePoint);
                        });
   }
 }

@@ -21,6 +21,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import uk.co.mr.finance.domain.LoadControl;
 import uk.co.mr.finance.domain.Statement;
+import uk.co.mr.finance.domain.StatementSummary;
 import uk.co.mr.finance.exception.LoaderException;
 
 import java.io.IOException;
@@ -89,8 +90,6 @@ public class NotOkStatementLoaderTest {
     UtilForTest.dropDatabase(connection);
     connection.close();
   }
-
-  //TODO Add checks to statement table
 
   @Test
   @DisplayName("Load data that is too large")
@@ -293,6 +292,49 @@ public class NotOkStatementLoaderTest {
     assertThat(getStatementCounter(), is(0));
 
     checkLoadControl(1, 1, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(0), 0, false, path, "32c08cca3540dbe2fbaa7ee9482570c0");
+  }
+
+  @Test
+  @DisplayName("Load 1 file successfully and try to load it again")
+  public void try_to_load_an_already_loaded_file() throws IOException {
+    String file1Content = """
+        Transaction Date,Transaction Type,Sort Code,Account Number,Transaction Description,Debit Amount,Credit Amount,Balance
+        02/04/2020,DD,'11-22-33,1234,NATIONAL TRUST FOR2,,1,2
+        1
+        01/04/2020,DD,'11-22-33,1234,NATIONAL TRUST FOR1,1,,1
+        """;
+
+    Path path = UtilForTest.createFile(fileSystem, "extrato_01.csv", file1Content);
+    Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
+
+    DatabaseManager databaseManager = new DatabaseManager(connection);
+    StatementLoader loader = new StatementLoader(databaseManager, new FileManager(), new LoadControlActions(ctx), new StatementlActions(ctx));
+    Tuple2<Optional<Throwable>, Optional<StatementSummary>> load = loader.load(path, Statement.transformToStatement());
+    Files.delete(path);
+
+    assertThat(load._1().isPresent(), is(equalTo(true)));
+    assertThat(load._1().get(), instanceOf(LoaderException.class));
+    assertThat(load._1().get().getMessage(),
+               is(equalTo("Record [1] does not have all needed fields to be transformed to statement")));
+    assertThat(load._2().isPresent(), is(equalTo(true)));
+    assertThat(load._2().get().count(), is(equalTo(2L)));
+    assertThat(load._2().get().minDate(), is(equalTo(LocalDate.of(2020, 04, 01))));
+    assertThat(load._2().get().maxDate(), is(equalTo(LocalDate.of(2020, 04, 02))));
+    assertThat(load._2().get().totalAmount(), is(equalTo(BigDecimal.ZERO)));
+    assertThat(getStatementCounter(), is(2));
+    checkLoadControl(1, 1, LocalDate.of(2020, 04, 01), LocalDate.of(2020, 04, 02), 2, false, path, "badad3271238b20adef511aad2efc238");
+
+    Path path2 = UtilForTest.createFile(fileSystem, "extrato_02.csv", file1Content);
+    Files.readAllLines(path2).forEach(line -> LOG.info("Line(path2):[{}]", line));
+    Tuple2<Optional<Throwable>, Optional<StatementSummary>> load2 = loader.load(path2, Statement.transformToStatement());
+    Files.delete(path2);
+
+    assertThat(load2._1().isPresent(), is(equalTo(true)));
+    assertThat(load2._1().get(), instanceOf(LoaderException.class));
+    assertThat(load2._1().get().getMessage(),
+               is(equalTo("hashCode [badad3271238b20adef511aad2efc238] already loaded in file:[C:\\work\\extrato_01.csv]")));
+    assertThat(load2._2().isPresent(), is(equalTo(false)));
+    System.out.println();
   }
 
   private void checkLoadControl(int loadControlRows,
