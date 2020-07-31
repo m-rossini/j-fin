@@ -15,7 +15,7 @@ import uk.co.mr.finance.load.FileManager;
 import uk.co.mr.finance.load.LoadControlActions;
 import uk.co.mr.finance.load.StatementLoader;
 import uk.co.mr.finance.domain.StatementSummary;
-import uk.co.mr.finance.load.StatementlActions;
+import uk.co.mr.finance.load.StatementActions;
 
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -76,7 +76,7 @@ public class StatementLoaderRunner implements Callable<Tuple2<Optional<Throwable
           connection.map(c -> new StatementLoader(databaseManager,
                                                   new FileManager(),
                                                   new LoadControlActions(ctx),
-                                                  new StatementlActions(ctx)))
+                                                  new StatementActions(ctx)))
                     .map(loader -> loader.load(toLoadPath, Statement.transformToStatement()));
 
       connection.peek(c -> databaseManager.safeClose());

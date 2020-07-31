@@ -33,7 +33,7 @@ public class StatementLoader implements DataLoader<Statement, DoubleSummaryStati
   private static final Logger LOG = LoggerFactory.getLogger(StatementLoader.class);
 
   private final LoadControlActions loadControlActions;
-  private final StatementlActions statementActions;
+  private final StatementActions statementActions;
   private Savepoint savePoint;
   private final FileManager fileManager;
   private final DatabaseManager dbManager;
@@ -41,7 +41,7 @@ public class StatementLoader implements DataLoader<Statement, DoubleSummaryStati
   public static final String ERR_MSG_REC_GEN = "This exception occurred while generating statements records";
 
   //TODO Replace JOOQ by R2DBC
-  public StatementLoader(DatabaseManager dbManager, FileManager fileManager, LoadControlActions loadControlActions, StatementlActions statementActions) {
+  public StatementLoader(DatabaseManager dbManager, FileManager fileManager, LoadControlActions loadControlActions, StatementActions statementActions) {
     dbManager.safeSetAutoCommitOff();
     this.dbManager = dbManager;
     this.fileManager = fileManager;

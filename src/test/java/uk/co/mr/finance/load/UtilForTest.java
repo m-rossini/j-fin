@@ -34,13 +34,17 @@ public final class UtilForTest {
     return path;
   }
 
-  public static void createDatabase(Connection connection) throws LiquibaseException {
-    Database database =
-        DatabaseFactory.getInstance()
-                       .findCorrectDatabaseImplementation(new JdbcConnection(connection));
-    Liquibase liquibase =
-        new Liquibase("db/k_finance_00_master_changelog.xml", new ClassLoaderResourceAccessor(), database);
-    liquibase.update("");
+  public static void createDatabase(Connection connection) {
+    try {
+      Database database =
+          DatabaseFactory.getInstance()
+                         .findCorrectDatabaseImplementation(new JdbcConnection(connection));
+      Liquibase liquibase =
+          new Liquibase("db/k_finance_00_master_changelog.xml", new ClassLoaderResourceAccessor(), database);
+      liquibase.update("");
+    } catch (LiquibaseException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   public static void dropDatabase(Connection connection) throws LiquibaseException {
