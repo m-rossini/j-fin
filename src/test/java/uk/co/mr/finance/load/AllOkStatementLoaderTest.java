@@ -86,7 +86,7 @@ public class AllOkStatementLoaderTest {
                        .map(c -> DSL.using(c, SQLDialect.POSTGRES))
                        .getOrElseThrow(() -> new IllegalArgumentException("Connection is not created"));
 
-    StatementLoader loader = new StatementLoader(databaseManager, new FileManager(), new LoadControlActions(ctx), new StatementlActions(ctx));
+    StatementLoader loader = new StatementLoader(databaseManager, new FileManager(), new LoadControlActions(ctx), new StatementActions(ctx));
     pairs = loadFiles(loader, filesToLoad);
     pairs.forEach(p -> LOG.info("Results:[{}]:", p));
   }
