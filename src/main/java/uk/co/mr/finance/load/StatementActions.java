@@ -36,21 +36,6 @@ public class StatementActions {
               .count(integer -> true);
   }
 
-  public int tryReorderData2() {
-    //TODO Use windowing functions
-    return Try.of(() -> ctx.selectFrom(STATEMENT_DATA)
-                           .orderBy(STATEMENT_DATA.STATEMENT_DATE,
-                                    STATEMENT_DATA.STATEMENT_ID.desc())
-                           .fetch())
-              .onFailure(t -> LOG.warn("Failed to select from STATEMENT_DATA", t))
-              .map(Iterator::ofAll)
-              .getOrElse(Iterator::empty)
-              .map(r -> r.getValue(STATEMENT_DATA.STATEMENT_ID))
-              .zipWithIndex()
-              .map(pair -> updateStatementOrder(pair._1(), pair._2()))
-              .count(integer -> true);
-  }
-
   private int updateStatementOrder(Integer transactionId, Integer order) {
     return ctx.update(STATEMENT_DATA)
               .set(STATEMENT_DATA.TRANSACTION_ORDER, order)
