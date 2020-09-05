@@ -53,7 +53,7 @@ public class ContainerManager {
     LOG.info("Container has started as [{}:{}]", container.getContainerInfo().getName(), container.getFirstMappedPort());
 
     connection = DriverManager.getConnection(container.getJdbcUrl(), USER_ID, "finance");
-    databaseManager = new DatabaseManager(connection);
+    databaseManager = DatabaseManager.from(connection);
     ctx = databaseManager.getConnection()
                          .map(c -> DSL.using(c, SQLDialect.POSTGRES))
                          .getOrElseThrow(() -> new IllegalArgumentException("Connection is not created"));

@@ -35,20 +35,20 @@ public class StatementLoader implements DataLoader<Statement, DoubleSummaryStati
   private final LoadControlActions loadControlActions;
   private final StatementActions statementActions;
   private Savepoint savePoint;
-  private final FileManager fileManager;
+  private final InputDataManager inputDataManager;
   private final DatabaseManager dbManager;
   public static final String ERR_MSG_REC_PRO = "This exception occurred while processing statements records";
   public static final String ERR_MSG_REC_GEN = "This exception occurred while generating statements records";
 
-  //TODO Replace JOOQ by R2DBC
-  public StatementLoader(DatabaseManager dbManager, FileManager fileManager, LoadControlActions loadControlActions, StatementActions statementActions) {
+  public StatementLoader(DatabaseManager dbManager, InputDataManager inputDataManager, LoadControlActions loadControlActions, StatementActions statementActions) {
     dbManager.safeSetAutoCommitOff();
     this.dbManager = dbManager;
-    this.fileManager = fileManager;
+    this.inputDataManager = inputDataManager;
     this.loadControlActions = loadControlActions;
     this.statementActions = statementActions;
   }
 
+  //TODO Change from PATH to InputStream
   @Override
   public Tuple2<Optional<Throwable>, Optional<StatementSummary>>
   load(Path path, Function<String[], Validation<Seq<Throwable>, Statement>> transformer) {
@@ -59,14 +59,17 @@ public class StatementLoader implements DataLoader<Statement, DoubleSummaryStati
         tryOpenControl.transform(f -> f.isFailure() ? new AtomicReference<>(f.getCause()) : new AtomicReference<>());
 
     Try<StatementSummary> results =
-        tryOpenControl.flatMap(controlId -> fileManager.transformFile(path, transformer))
+        tryOpenControl.flatMap(controlId -> inputDataManager.transformFile(path, transformer))
                       .map(this::collectStatements)
+                      .peek(u -> LOG.info("Number of generated statements:{}", u._2.size()))
                       .peek(u -> handleThrowable(u._1(), hasIntermediateErrors, ERR_MSG_REC_GEN))
                       .map(Tuple2::_2)
                       .map(Collection::stream)
                       .map(this::processStatements)
+                      .peek(l -> LOG.info("[{}] insert statements processed", l.size()))
                       .map(Collection::stream)
                       .map(this::collectResults)
+                      .peek(u -> LOG.info("Exceptions thrown during processing:[{}]", u._1().size()))
                       .peek(u -> handleThrowable(u._1(), hasIntermediateErrors, ERR_MSG_REC_PRO))
                       .map(Tuple2::_2)
                       .map(Option::ofOptional)
@@ -96,11 +99,11 @@ public class StatementLoader implements DataLoader<Statement, DoubleSummaryStati
   }
 
   private Try<Integer> openLoadControl(Path path) {
-    return fileManager.mayHashFile(path)
-                      .onFailure(t -> LOG.error("Error trying to read file", t))
-                      .flatMap(loadControlActions::tryCanInsert)
-                      .flatMap(hash -> loadControlActions.tryInsertLoadControl(path.toAbsolutePath().toString(), hash))
-                      .peek(id -> dbManager.safeCommit());
+    return inputDataManager.mayHashFile(path)
+                           .onFailure(t -> LOG.error("Error trying to read file", t))
+                           .flatMap(loadControlActions::tryCanInsert)
+                           .flatMap(hash -> loadControlActions.tryInsertLoadControl(path.toAbsolutePath().toString(), hash))
+                           .peek(id -> dbManager.safeCommit());
   }
 
   private Tuple2<List<Throwable>, List<Statement>> collectStatements(Stream<? extends Validation<Seq<Throwable>, Statement>> v) {
@@ -137,9 +140,9 @@ public class StatementLoader implements DataLoader<Statement, DoubleSummaryStati
 
   private List<Try<Statement>> processStatements(Stream<Statement> statements) {
     LOG.info("About to to insert into statements table");
-    return statements.peek(s -> LOG.info("Processing Statement:[{}]", s))
+    return statements.peek(s -> LOG.debug("Processing Statement:[{}]", s))
                      .map(statementActions::tryInsertIntoStatement)
-                     .peek(tryOf -> LOG.info("Result of insertion of statement:[{}]", tryOf))
+                     .peek(tryOf -> LOG.debug("Result of insertion of statement:[{}]", tryOf))
                      .map(this::savePointOrRollback)
                      .collect(toList());
   }

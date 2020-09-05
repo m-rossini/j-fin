@@ -60,7 +60,7 @@ class StatementActionsTest {
   }
 
   @Test
-  @DisplayName("Insert and then create statment order correctly")
+  @DisplayName("Insert and then create statement order correctly")
   public void try_to_reorder_data() throws IOException {
     StatementActions actions = containerManager.getDatabaseContext()
                                                .map(StatementActions::new)
@@ -77,7 +77,7 @@ class StatementActionsTest {
                       .peek(r -> assertNull(r.get(STATEMENT_DATA.TRANSACTION_ORDER)))
                       .peek(r -> balanceCheck(previousBalanceColumn, r))
                       .peek(r -> loadOrderCheck(shouldBeOrder, (int) expectedSize, r))
-                      .collect(Collectors.counting());
+                      .count();
     assertThat(expectedSize, is(equalTo(size1)));
 
     actions.tryReorderData();
@@ -90,7 +90,7 @@ class StatementActionsTest {
                       .peek(r -> balanceCheck(previousBalanceColumn, r))
                       .peek(r -> loadOrderCheck(shouldBeOrder, (int) expectedSize, r))
                       .peek(r -> transactionOrderCheck(expectedSize, r))
-                      .collect(Collectors.counting());
+                      .count();
     assertThat(expectedSize, is(equalTo(size2)));
   }
 
@@ -150,8 +150,8 @@ class StatementActionsTest {
         """;
     Path path = UtilForTest.createFile(fileSystem, "extrato_01.csv", file1Content);
 
-    FileManager fileManager = new FileManager();
-    Try<Stream<Validation<Seq<Throwable>, Statement>>> tryStatement = fileManager.transformFile(path, Statement.transformToStatement());
+    InputDataManager inputDataManager = new InputDataManager();
+    Try<Stream<Validation<Seq<Throwable>, Statement>>> tryStatement = inputDataManager.transformFile(path, Statement.transformToStatement());
     assertTrue(tryStatement.isSuccess());
     List<Statement> statements = tryStatement.get()
                                              .filter(Validation::isValid)

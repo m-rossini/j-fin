@@ -2,32 +2,30 @@ package uk.co.mr.finance.runner;
 
 import io.vavr.Tuple2;
 import io.vavr.control.Try;
-import org.jooq.DSLContext;
-import org.jooq.SQLDialect;
-import org.jooq.impl.DSL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
 import uk.co.mr.finance.domain.Statement;
-import uk.co.mr.finance.load.DatabaseManager;
-import uk.co.mr.finance.load.FileManager;
-import uk.co.mr.finance.load.LoadControlActions;
-import uk.co.mr.finance.load.StatementLoader;
 import uk.co.mr.finance.domain.StatementSummary;
-import uk.co.mr.finance.load.StatementActions;
+import uk.co.mr.finance.load.DatabaseManager;
+import uk.co.mr.finance.load.MultiStatementLoader;
+import uk.co.mr.finance.load.StatementLoader;
 
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
 
 import static picocli.CommandLine.Command;
 
 @Command(description = "Loads statement file into database", showDefaultValues = true)
-public class StatementLoaderRunner implements Callable<Tuple2<Optional<Throwable>, Optional<StatementSummary>>> {
+public class StatementLoaderRunner implements Callable<Iterable<Tuple2<Optional<Throwable>, Optional<StatementSummary>>>> {
   private static final Logger LOG = LoggerFactory.getLogger(StatementLoaderRunner.class);
 
   @Option(names = {"-f", "--file"}, description = "File to load", required = true)
@@ -57,49 +55,53 @@ public class StatementLoaderRunner implements Callable<Tuple2<Optional<Throwable
   }
 
   @Override
-  public Tuple2<Optional<Throwable>, Optional<StatementSummary>> call() {
+  public Collection<Tuple2<Optional<Throwable>, Optional<StatementSummary>>> call() {
+    return loadMultipleFiles(null == toLoadPath ? List.of() : List.of(toLoadPath));
+  }
+
+  private Collection<Tuple2<Optional<Throwable>, Optional<StatementSummary>>> loadMultipleFiles(Collection<? extends Path> fileNamesToLoad) {
     Instant is = Instant.now();
 
-    DatabaseManager databaseManager = new DatabaseManager(driverName, connectString, userId, cleanPassword);
+    DatabaseManager databaseManager = DatabaseManager.from(driverName, connectString, userId, cleanPassword);
     Try<Connection> connection = databaseManager.getConnection();
     if (connection.isFailure()) {
-      return new Tuple2<>(Optional.of(connection.getCause()),
-                          Optional.empty());
+      return List.of(new Tuple2<>(Optional.of(connection.getCause()),
+                                  Optional.empty()));
     }
 
+    MultiStatementLoader multiStatementLoader = new MultiStatementLoader(databaseManager);
+    Collection<Tuple2<Optional<Throwable>, Optional<StatementSummary>>> loadResults = multiStatementLoader.load(fileNamesToLoad);
 
-    try (DSLContext ctx = databaseManager.getConnection()
-                                         .map(c -> DSL.using(c, SQLDialect.POSTGRES))
-                                         .getOrElseThrow(() -> new IllegalArgumentException("Connection is not created"))) {
+    connection.peek(c -> databaseManager.safeClose());
 
-      Try<Tuple2<Optional<Throwable>, Optional<StatementSummary>>> summaries =
-          connection.map(c -> new StatementLoader(databaseManager,
-                                                  new FileManager(),
-                                                  new LoadControlActions(ctx),
-                                                  new StatementActions(ctx)))
-                    .map(loader -> loader.load(toLoadPath, Statement.transformToStatement()));
+    Duration duration = Duration.between(is, Instant.now());
 
-      connection.peek(c -> databaseManager.safeClose());
+    printSummaryResults(loadResults, duration);
 
-      Duration duration = Duration.between(is, Instant.now());
+    return loadResults;
+  }
 
-      String message = """
-          Total Time: [%s]
-          Exception Type: [%s]
-          Exception Message: [%s]
-          Summary: [%s]
-          """
-          .formatted(duration.toString(),
-                     summaries.get()._1().map(t -> t.getClass().getCanonicalName()).orElse("No exception occurred"),
-                     summaries.get()._1().map(Throwable::getMessage).orElse("No exception occurred"),
-                     summaries.get()._2().map(Object::toString).orElse("No summary was produced"));
-      summaries.peek(s -> LOG.info("Total Time:[{}]\nValue returned from load:[{}]", duration, s));
+  private void printSummaryResults(Collection<? extends Tuple2<Optional<Throwable>, ? extends Optional<?>>> loadResults, Duration duration) {
+    String message = """
+        Total Time: [%s]
+        Exception Type: [%s]
+        Exception Message: [%s]
+        Summary: [%s]
+        """;
 
-      return summaries.peek(s -> LOG.info(message))
-                      .getOrElseThrow(l -> {
-                        throw new IllegalArgumentException(l);
-                      });
-    }
+    long loadCommands = loadResults.stream()
+                                   .map(tuple -> message.formatted(duration.toString(),
+                                                                   tuple._1()
+                                                                        .map(t -> t.getClass().getCanonicalName())
+                                                                        .orElse("No exception occurred"),
+                                                                   tuple._1().map(Throwable::getMessage).orElse("No exception occurred"),
+                                                                   tuple._2().map(Object::toString).orElse("No summary was produced")))
+                                   .peek(m -> LOG.info("{}", m))
+                                   .count();
+  }
+
+  private List<Tuple2<Optional<Throwable>, Optional<StatementSummary>>> loadFiles(StatementLoader loader, Collection<? extends Path> fileNamesToLoad) {
+    return fileNamesToLoad.stream().map(f -> loader.load(f, Statement.transformToStatement())).collect(Collectors.toList());
   }
 
 }

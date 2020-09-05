@@ -20,8 +20,8 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-public class FileManager {
-  private static final Logger LOG = LoggerFactory.getLogger(FileManager.class);
+public class InputDataManager {
+  private static final Logger LOG = LoggerFactory.getLogger(InputDataManager.class);
 
   public boolean canReadFile(Path path) {
     return Files.isReadable(path.toAbsolutePath());
@@ -30,7 +30,7 @@ public class FileManager {
   public Try<String> mayHashFile(Path path) {
     return canReadFile(path.toAbsolutePath())
            ? tryHashFile(path)
-           : Try.failure(new IOException(String.format("File [%s] cannot be read", path)));
+           : Try.failure(new IOException(String.format("File [%s] cannot be read", path.toAbsolutePath())));
   }
 
   public Try<String> tryHashFile(Path path) {
@@ -45,8 +45,7 @@ public class FileManager {
     return MurmurHash3.hash128x64(buffer.array());
   }
 
-  public Try<Stream<Validation<Seq<Throwable>, Statement>>>
-  transformFile(Path path, Function<String[], Validation<Seq<Throwable>, Statement>> transformer) {
+  public Try<Stream<Validation<Seq<Throwable>, Statement>>> transformFile(Path path, Function<String[], Validation<Seq<Throwable>, Statement>> transformer) {
     return Try.of(() -> Files.newBufferedReader(path))
               .map(reader -> new CSVReaderBuilder(reader)
                   .withSkipLines(1)

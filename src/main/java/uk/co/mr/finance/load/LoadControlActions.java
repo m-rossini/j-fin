@@ -1,7 +1,6 @@
 package uk.co.mr.finance.load;
 
 import io.vavr.control.Try;
-import org.jetbrains.annotations.NotNull;
 import org.jooq.DSLContext;
 import org.jooq.Record;
 import org.slf4j.Logger;
