@@ -8,39 +8,40 @@ import org.slf4j.LoggerFactory;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Savepoint;
+import java.util.Objects;
 
+//TODO use a real connection pool please
 public class DatabaseManager {
   private static final Logger LOG = LoggerFactory.getLogger(DatabaseManager.class);
 
-  private final String driverName;
-  private final String connectString;
-  private final String userId;
-  private final String userPwd;
   private final Try<Connection> connection;
 
-  public DatabaseManager(String driverName, String connectString, String userId, String userPwd) {
-    this.driverName = driverName;
-    this.connectString = connectString;
-    this.userId = userId;
-    this.userPwd = userPwd;
+  public static final DatabaseManager from(String driverName, String connectString, String userId, String userPwd) {
+    return new DatabaseManager(driverName, connectString, userId, userPwd);
+  }
 
-    this.connection = connect();
+  public static final DatabaseManager from(Connection connection) {
+    return new DatabaseManager(connection);
+  }
+
+  private DatabaseManager(String driverName, String connectString, String userId, String userPwd) {
+    Objects.requireNonNull(driverName, "Driver name cannot be null");
+    Objects.requireNonNull(connectString, "Connection string cannot be null");
+    Objects.requireNonNull(userId, "User id and/or password cannot be null");
+    Objects.requireNonNull(userPwd, "User id and/or password cannot be null");
+
+    this.connection = connect(driverName, connectString, userId, userPwd);
 
   }
 
-  public DatabaseManager(Connection connection) {
-    this.driverName = null;
-    this.connectString = null;
-    this.userId = null;
-    this.userPwd = null;
-
+  private DatabaseManager(Connection connection) {
     this.connection =
         Try.of(() -> connection)
            .filterTry(c -> c.isValid(60))
            .onFailure(t -> LOG.error("Connection is not in a valid state", t));
   }
 
-  private Try<Connection> connect() {
+  private Try<Connection> connect(String driverName, String connectString, String userId, String userPwd) {
     return loadDriver(driverName).flatMap(v -> safeConnect(connectString, userId, userPwd));
   }
 

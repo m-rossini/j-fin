@@ -25,6 +25,8 @@ import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -33,6 +35,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
 import static uk.co.mr.finance.load.UtilForTest.createDatabase;
 
 public class StatementLoaderRunnerTest {
@@ -69,44 +72,7 @@ public class StatementLoaderRunnerTest {
   public void test_runner_null_parameters() {
     StatementLoaderRunner runner = new StatementLoaderRunner();
 
-    Tuple2<Optional<Throwable>, Optional<StatementSummary>> call = runner.call();
-    assertNotNull(call);
-    assertThat(call._1().isPresent(), is(equalTo(true)));
-    assertThat(call._1().get(), instanceOf(NullPointerException.class));
-    assertThat(call._2(), is(Optional.empty()));
-  }
-
-  @Test
-  @DisplayName("Driver Name is provided but not other connection properties")
-  public void test_runner_driver_informed() throws Throwable {
-    StatementLoaderRunner runner = new StatementLoaderRunner();
-
-    new FieldSetter(runner, runner.getClass().getField("driverName")).set(container.getDriverClassName());
-
-    Tuple2<Optional<Throwable>, Optional<StatementSummary>> call = runner.call();
-    assertNotNull(call);
-    assertThat(call._1().isPresent(), is(equalTo(true)));
-    assertThat(call._1().get(), instanceOf(SQLException.class));
-    assertThat(call._1().get().getMessage(), is("The url cannot be null"));
-    assertThat(call._2(), is(Optional.empty()));
-
-  }
-
-  @Test
-  @DisplayName("Driver Name and URL are provided but not other connection properties")
-  public void test_runner_driver_and_url_informed() throws Throwable {
-    StatementLoaderRunner runner = new StatementLoaderRunner();
-
-    new FieldSetter(runner, runner.getClass().getField("driverName")).set(container.getDriverClassName());
-    new FieldSetter(runner, runner.getClass().getField("connectString")).set(container.getJdbcUrl());
-
-    Tuple2<Optional<Throwable>, Optional<StatementSummary>> call = runner.call();
-    assertNotNull(call);
-    assertThat(call._1().isPresent(), is(equalTo(true)));
-    assertThat(call._1().get(), instanceOf(PSQLException.class));
-    assertThat(call._1().get().getMessage(),
-               is("The server requested password-based authentication, but no password was provided."));
-    assertThat(call._2(), is(Optional.empty()));
+    assertThrows(NullPointerException.class, runner::call);
   }
 
   @Test
@@ -121,15 +87,20 @@ public class StatementLoaderRunnerTest {
 
     new FieldSetter(runner, runner.getClass().getDeclaredField("toLoadPath")).set(Paths.get("non-existent-file"));
 
-    Tuple2<Optional<Throwable>, Optional<StatementSummary>> call = runner.call();
-    assertThat(call._2(), is(Optional.empty()));
+    Collection<? extends Tuple2<Optional<Throwable>, ? extends Optional<?>>> call = runner.call();
+    Optional<? extends Tuple2<Optional<Throwable>, ? extends Optional<?>>> anyTuple = call.stream().findAny();
+    assertThat(call.size(), is(equalTo(1)));
+    assertThat(anyTuple.flatMap(Tuple2::_2), is(Optional.empty()));
 
-    IOException exception =
-        call._1()
-            .map(IOException.class::cast)
-            .orElseThrow(() -> new IllegalArgumentException("Should have an IOException"));
-    assertThat(exception.getMessage(),
-               is("File [non-existent-file] cannot be read"));
+    Optional<Throwable> maybeThrowable = anyTuple.map(Tuple2::_1)
+                                                 .flatMap(o -> o);
+
+    maybeThrowable.ifPresentOrElse(e -> assertThat(e, instanceOf(IOException.class)),
+                                   () -> fail("No throwable present as first element of the tuple and one was expected"));
+
+    maybeThrowable.map(Throwable::getMessage)
+                  .ifPresentOrElse(e -> assertThat(e, is("File [non-existent-file] cannot be read")),
+                                   () -> fail("Throwable message is different from the expected"));
   }
 
   @Test
@@ -151,12 +122,20 @@ public class StatementLoaderRunnerTest {
 
     new FieldSetter(runner, runner.getClass().getDeclaredField("toLoadPath")).set(path);
 
-    Tuple2<Optional<Throwable>, Optional<StatementSummary>> results = runner.call();
-    assertNotNull(results);
-    assertThat(results._2().orElseThrow(() -> new LoaderException("Should have a summary")).getCount(),
-               is(1L));
+    Collection<Tuple2<Optional<Throwable>, Optional<StatementSummary>>> call = runner.call();
+    Optional<Tuple2<Optional<Throwable>, Optional<StatementSummary>>> anyTuple = call.stream().findAny();
+    assertThat(call.size(), is(equalTo(1)));
+    assertThat(anyTuple.flatMap(Tuple2::_1), is(Optional.empty()));
 
-    assertThat(results._2().orElseThrow(() -> new LoaderException("Should have a total amount")).totalAmount(),
-               equalTo(new BigDecimal("-114.00")));
+    Optional<StatementSummary> maybeSummary = anyTuple.map(Tuple2::_2).flatMap(o -> o);
+
+    maybeSummary.map(StatementSummary::getCount)
+                .ifPresentOrElse(count -> assertThat(count, is(equalTo(1L))),
+                                 () -> fail("There is no summary when one was expected"));
+
+
+    maybeSummary.map(StatementSummary::totalAmount)
+                .ifPresentOrElse(count -> assertThat(count, is(equalTo(new BigDecimal("-114.00")))),
+                                 () -> fail("There is no summary when one was expected"));
   }
 }

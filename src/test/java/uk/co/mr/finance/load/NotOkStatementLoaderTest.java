@@ -102,8 +102,8 @@ public class NotOkStatementLoaderTest {
     Path path = UtilForTest.createFile(fileSystem, "extrato_01.csv", file1Content);
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
-    DatabaseManager databaseManager = new DatabaseManager(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new FileManager(), new LoadControlActions(ctx), new StatementActions(ctx));
+    DatabaseManager databaseManager = DatabaseManager.from(connection);
+    StatementLoader loader = new StatementLoader(databaseManager, new InputDataManager(), new LoadControlActions(ctx), new StatementActions(ctx));
     Tuple2<Optional<Throwable>, Optional<StatementSummary>> load = loader.load(path, Statement.transformToStatement());
 
     Files.delete(path);
@@ -130,8 +130,8 @@ public class NotOkStatementLoaderTest {
     Path path = UtilForTest.createFile(fileSystem, "extrato_01.csv", file1Content);
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
-    DatabaseManager databaseManager = new DatabaseManager(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new FileManager(), new LoadControlActions(ctx), new StatementActions(ctx));
+    DatabaseManager databaseManager = DatabaseManager.from(connection);
+    StatementLoader loader = new StatementLoader(databaseManager, new InputDataManager(), new LoadControlActions(ctx), new StatementActions(ctx));
     Tuple2<Optional<Throwable>, Optional<StatementSummary>> load =
         loader.load(path, Statement.transformToStatement());
 
@@ -163,8 +163,8 @@ public class NotOkStatementLoaderTest {
     Path path = UtilForTest.createFile(fileSystem, "extrato_01.csv", file1Content);
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
-    DatabaseManager databaseManager = new DatabaseManager(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new FileManager(), new LoadControlActions(ctx), new StatementActions(ctx));
+    DatabaseManager databaseManager = DatabaseManager.from(connection);
+    StatementLoader loader = new StatementLoader(databaseManager, new InputDataManager(), new LoadControlActions(ctx), new StatementActions(ctx));
     Tuple2<Optional<Throwable>, Optional<StatementSummary>> load =
         loader.load(path, Statement.transformToStatement());
 
@@ -194,8 +194,8 @@ public class NotOkStatementLoaderTest {
     Path path = UtilForTest.createFile(fileSystem, "extrato_01.csv", file1Content);
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
-    DatabaseManager databaseManager = new DatabaseManager(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new FileManager(), new LoadControlActions(ctx), new StatementActions(ctx));
+    DatabaseManager databaseManager = DatabaseManager.from(connection);
+    StatementLoader loader = new StatementLoader(databaseManager, new InputDataManager(), new LoadControlActions(ctx), new StatementActions(ctx));
     StatementSummary summary = loader.load(path, Statement.transformToStatement())._2()
                                      .orElseThrow(() -> new LoaderException("Should have a summary"));
     Files.delete(path);
@@ -222,8 +222,8 @@ public class NotOkStatementLoaderTest {
     Path path = UtilForTest.createFile(fileSystem, "extrato_01.csv", file1Content);
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
-    DatabaseManager databaseManager = new DatabaseManager(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new FileManager(), new LoadControlActions(ctx), new StatementActions(ctx));
+    DatabaseManager databaseManager = DatabaseManager.from(connection);
+    StatementLoader loader = new StatementLoader(databaseManager, new InputDataManager(), new LoadControlActions(ctx), new StatementActions(ctx));
     StatementSummary summary = loader.load(path, Statement.transformToStatement())._2()
                                      .orElseThrow(() -> new LoaderException("Should have a summary"));
     Files.delete(path);
@@ -250,8 +250,8 @@ public class NotOkStatementLoaderTest {
     Path path = UtilForTest.createFile(fileSystem, "extrato_01.csv", file1Content);
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
-    DatabaseManager databaseManager = new DatabaseManager(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new FileManager(), new LoadControlActions(ctx), new StatementActions(ctx));
+    DatabaseManager databaseManager = DatabaseManager.from(connection);
+    StatementLoader loader = new StatementLoader(databaseManager, new InputDataManager(), new LoadControlActions(ctx), new StatementActions(ctx));
     StatementSummary summary = loader.load(path, Statement.transformToStatement())._2()
                                      .orElseThrow(() -> new LoaderException("Should have a summary"));
     Files.delete(path);
@@ -278,8 +278,8 @@ public class NotOkStatementLoaderTest {
     Path path = UtilForTest.createFile(fileSystem, "extrato_01.csv", file1Content);
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
-    DatabaseManager databaseManager = new DatabaseManager(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new FileManager(), new LoadControlActions(ctx), new StatementActions(ctx));
+    DatabaseManager databaseManager = DatabaseManager.from(connection);
+    StatementLoader loader = new StatementLoader(databaseManager, new InputDataManager(), new LoadControlActions(ctx), new StatementActions(ctx));
     Tuple2<Optional<Throwable>, Optional<StatementSummary>> load = loader.load(path, Statement.transformToStatement());
     Files.delete(path);
 
@@ -307,8 +307,8 @@ public class NotOkStatementLoaderTest {
     Path path = UtilForTest.createFile(fileSystem, "extrato_01.csv", file1Content);
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
-    DatabaseManager databaseManager = new DatabaseManager(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new FileManager(), new LoadControlActions(ctx), new StatementActions(ctx));
+    DatabaseManager databaseManager = DatabaseManager.from(connection);
+    StatementLoader loader = new StatementLoader(databaseManager, new InputDataManager(), new LoadControlActions(ctx), new StatementActions(ctx));
     Tuple2<Optional<Throwable>, Optional<StatementSummary>> load = loader.load(path, Statement.transformToStatement());
     Files.delete(path);
 

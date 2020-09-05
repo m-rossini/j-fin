@@ -73,7 +73,7 @@ public class AllOkStatementLoaderTest {
     container.start();
 
     connection = DriverManager.getConnection(container.getJdbcUrl(), USER_ID, "finance");
-    DatabaseManager databaseManager = new DatabaseManager(connection);
+    DatabaseManager databaseManager = DatabaseManager.from(connection);
 
     createDatabase(connection);
 
@@ -86,7 +86,7 @@ public class AllOkStatementLoaderTest {
                        .map(c -> DSL.using(c, SQLDialect.POSTGRES))
                        .getOrElseThrow(() -> new IllegalArgumentException("Connection is not created"));
 
-    StatementLoader loader = new StatementLoader(databaseManager, new FileManager(), new LoadControlActions(ctx), new StatementActions(ctx));
+    StatementLoader loader = new StatementLoader(databaseManager, new InputDataManager(), new LoadControlActions(ctx), new StatementActions(ctx));
     pairs = loadFiles(loader, filesToLoad);
     pairs.forEach(p -> LOG.info("Results:[{}]:", p));
   }
@@ -229,6 +229,8 @@ public class AllOkStatementLoaderTest {
            .orderBy(STATEMENT_DATA.STATEMENT_DATE, STATEMENT_DATA.STATEMENT_ID.desc())
            .fetch()
            .into(Statement.class);
+
+    records.forEach(r -> LOG.info("Record:{}", r));
 
     int quantity = 0;
     for (Statement record : records) {

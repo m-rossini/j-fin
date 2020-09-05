@@ -4,9 +4,16 @@ import io.vavr.Tuple2;
 import io.vavr.collection.Iterator;
 import io.vavr.control.Try;
 import org.jooq.DSLContext;
+import org.jooq.Record2;
+import org.jooq.Record3;
+import org.jooq.Record4;
+import org.jooq.Result;
+import org.jooq.SelectSeekStep1;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.co.mr.finance.domain.Statement;
+
+import java.time.LocalDate;
 
 import static org.jooq.impl.DSL.lead;
 import static org.jooq.impl.DSL.orderBy;
@@ -23,14 +30,30 @@ public class StatementActions {
   }
 
   public int tryReorderData() {
+
+//    SelectSeekStep1<Record4<Integer, Integer, LocalDate, Integer>, Integer> q1 =
+//        ctx.select(STATEMENT_DATA.STATEMENT_ID,
+//                   STATEMENT_DATA.TRANSACTION_ORDER,
+//                   STATEMENT_DATA.STATEMENT_DATE,
+//                   rowNumber().over()
+//                              .orderBy(STATEMENT_DATA.STATEMENT_DATE,STATEMENT_DATA.STATEMENT_ID.desc())
+//                              .as("calculated_transaction_order"))
+//           .from(STATEMENT_DATA)
+//           .orderBy(STATEMENT_DATA.STATEMENT_ID);
+//    LOG.info("q1:{}", q1);
+//    Result<Record4<Integer, Integer, LocalDate, Integer>> fetch1 = q1.fetch();
+//    LOG.info("Fetch1:{}", fetch1);
+
     return Try.of(() -> ctx.select(STATEMENT_DATA.STATEMENT_ID,
                                    STATEMENT_DATA.TRANSACTION_ORDER,
-                                   rowNumber().over().orderBy(STATEMENT_DATA.STATEMENT_ID.desc()).as("calculated_transaction_order"))
-                           .from(STATEMENT_DATA))
+                                   rowNumber().over()
+                                              .orderBy(STATEMENT_DATA.STATEMENT_DATE, STATEMENT_DATA.STATEMENT_ID.desc())
+                                              .as("calculated_transaction_order"))
+                           .from(STATEMENT_DATA)
+                           .orderBy(STATEMENT_DATA.STATEMENT_ID))
               .onFailure(t -> LOG.warn("Failed to select from STATEMENT_DATA", t))
               .map(Iterator::ofAll)
               .getOrElse(Iterator::empty)
-              .filter(r -> r.get(STATEMENT_DATA.TRANSACTION_ORDER) == null)
               .map(r -> new Tuple2<>(r.getValue(STATEMENT_DATA.STATEMENT_ID), r.getValue("calculated_transaction_order", Integer.class)))
               .map(pair -> updateStatementOrder(pair._1(), pair._2()))
               .count(integer -> true);
@@ -45,7 +68,7 @@ public class StatementActions {
 
   public Try<Statement> tryInsertIntoStatement(Statement statement) {
     return Try.of(() -> insertIntoStatement(statement))
-              .onFailure(t -> LOG.error("Failed to insert into statement table", t));
+              .onFailure(t -> LOG.error("Failed to insert statement:{}", statement, t));
   }
 
   private Statement insertIntoStatement(Statement statement) {
