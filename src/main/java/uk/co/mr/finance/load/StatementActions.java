@@ -85,7 +85,6 @@ public class StatementActions {
            .returningResult(STATEMENT_DATA.STATEMENT_ID)
            .fetchOne()
            .into(Integer.class);
-
     return statement.withStatementId(statementId);
   }
 

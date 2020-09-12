@@ -1,6 +1,7 @@
 package uk.co.mr.finance.load;
 
 import io.vavr.Tuple2;
+import io.vavr.control.Try;
 import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
 import org.jooq.impl.DSL;
@@ -10,6 +11,7 @@ import uk.co.mr.finance.domain.Statement;
 import uk.co.mr.finance.domain.StatementSummary;
 
 import java.nio.file.Path;
+import java.sql.Connection;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -17,7 +19,6 @@ import java.util.stream.Collectors;
 
 public class MultiStatementLoader {
   private static final Logger LOG = LoggerFactory.getLogger(MultiStatementLoader.class);
-
   private DatabaseManager databaseManager;
 
   public MultiStatementLoader(DatabaseManager databaseManager) {
@@ -25,17 +26,19 @@ public class MultiStatementLoader {
   }
 
   public Collection<Tuple2<Optional<Throwable>, Optional<StatementSummary>>> load(Collection<? extends Path> fileNamesToLoad) {
-    try (DSLContext ctx = databaseManager.getConnection()
-                                         .map(c -> DSL.using(c, SQLDialect.POSTGRES))
-                                         .getOrElseThrow(() -> new IllegalArgumentException("Connection is not created"))) {
+    Try<Connection> connection = databaseManager.getConnection();
+    try (DSLContext ctx = connection
+        .peek(c -> LOG.info(">>>Connection A:[{}}", connection))
+        .map(c -> DSL.using(c, SQLDialect.POSTGRES))
+        .getOrElseThrow(() -> new IllegalArgumentException("Connection is not created"))) {
 
-
-      StatementLoader loader = new StatementLoader(databaseManager,
-                                                   new InputDataManager(),
-                                                   new LoadControlActions(ctx),
-                                                   new StatementActions(ctx));
-
-      return loadFiles(loader, fileNamesToLoad);
+      return connection.map(c -> new StatementLoader(c,
+                                                     new InputDataManager(),
+                                                     new LoadControlActions(ctx),
+                                                     new StatementActions(ctx)))
+                       .map(loader -> loadFiles(loader, fileNamesToLoad))
+                       .andFinally(() -> connection.peek(DatabaseManager::safeCloseConnection))
+                       .getOrElseThrow(() -> new RuntimeException("Should have a tuple as result from load"));
     }
   }
 

@@ -3,6 +3,7 @@ package uk.co.mr.finance.load;
 import com.google.common.jimfs.Configuration;
 import com.google.common.jimfs.Jimfs;
 import io.vavr.Tuple2;
+import io.vavr.control.Try;
 import liquibase.exception.LiquibaseException;
 import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
@@ -49,17 +50,20 @@ import static uk.co.mr.finance.db.Tables.STATEMENT_DATA;
 public class NotOkStatementLoaderTest {
   private static final Logger LOG = LoggerFactory.getLogger(NotOkStatementLoaderTest.class);
 
+  private final static String USER_ID = "finance";
+  private final static String PASS_WORD = "finance";
+  private static FileSystem fileSystem;
+  private Try<Connection> connection;
+  private DSLContext ctx;
 
   @Container
   private static final PostgreSQLContainer container =
       new PostgreSQLContainer<>("postgres:latest")
           .withDatabaseName("finance")
-          .withUsername("finance")
-          .withPassword("finance")
+          .withUsername(USER_ID)
+          .withPassword(PASS_WORD)
           .withExposedPorts(5432);
-  private static FileSystem fileSystem;
-  private Connection connection;
-  private DSLContext ctx;
+
 
   @BeforeAll
   public static void set_up() {
@@ -67,7 +71,6 @@ public class NotOkStatementLoaderTest {
     container.start();
 
     fileSystem = Jimfs.newFileSystem(Configuration.windows());
-
   }
 
   @AfterAll
@@ -77,22 +80,22 @@ public class NotOkStatementLoaderTest {
   }
 
   @BeforeEach
-  public void create() throws LiquibaseException, SQLException {
-    connection = DriverManager.getConnection(container.getJdbcUrl(), "finance", "finance");
-    UtilForTest.createDatabase(connection);
-
-    ctx = DSL.using(connection, SQLDialect.POSTGRES);
+  public void create() {
+    DatabaseManager databaseManager = DatabaseManager.from(container.getDriverClassName(), container.getJdbcUrl(), USER_ID, PASS_WORD);
+    connection = databaseManager.getConnection();
+    connection.peek(UtilForTest::createDatabase);
+    ctx = connection.map(c -> DSL.using(c, SQLDialect.POSTGRES)).getOrElseThrow(() -> new RuntimeException("Should have a connection"));
   }
 
   @AfterEach()
-  public void dropAll() throws LiquibaseException, SQLException {
-    connection.rollback();
-    UtilForTest.dropDatabase(connection);
-    connection.close();
+  public void dropAll() {
+    connection.peek(DatabaseManager::safeRollback);
+    connection.peek(UtilForTest::dropDatabase);
+    connection.peek(DatabaseManager::safeCloseConnection);
   }
 
   @Test
-  @DisplayName("Load data that is too large")
+  @DisplayName("Load data column that is too large")
   public void test_large_data() throws IOException {
     String file1Content = """
         Transaction Date,Transaction Type,Sort Code,Account Number,Transaction Description,Debit Amount,Credit Amount,Balance
@@ -102,9 +105,7 @@ public class NotOkStatementLoaderTest {
     Path path = UtilForTest.createFile(fileSystem, "extrato_01.csv", file1Content);
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
-    DatabaseManager databaseManager = DatabaseManager.from(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new InputDataManager(), new LoadControlActions(ctx), new StatementActions(ctx));
-    Tuple2<Optional<Throwable>, Optional<StatementSummary>> load = loader.load(path, Statement.transformToStatement());
+    Tuple2<Optional<Throwable>, Optional<StatementSummary>> load = loadData(path);
 
     Files.delete(path);
 
@@ -130,10 +131,7 @@ public class NotOkStatementLoaderTest {
     Path path = UtilForTest.createFile(fileSystem, "extrato_01.csv", file1Content);
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
-    DatabaseManager databaseManager = DatabaseManager.from(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new InputDataManager(), new LoadControlActions(ctx), new StatementActions(ctx));
-    Tuple2<Optional<Throwable>, Optional<StatementSummary>> load =
-        loader.load(path, Statement.transformToStatement());
+    Tuple2<Optional<Throwable>, Optional<StatementSummary>> load = loadData(path);
 
     Files.delete(path);
 
@@ -163,10 +161,7 @@ public class NotOkStatementLoaderTest {
     Path path = UtilForTest.createFile(fileSystem, "extrato_01.csv", file1Content);
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
-    DatabaseManager databaseManager = DatabaseManager.from(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new InputDataManager(), new LoadControlActions(ctx), new StatementActions(ctx));
-    Tuple2<Optional<Throwable>, Optional<StatementSummary>> load =
-        loader.load(path, Statement.transformToStatement());
+    Tuple2<Optional<Throwable>, Optional<StatementSummary>> load = loadData(path);
 
     Files.delete(path);
 
@@ -194,10 +189,10 @@ public class NotOkStatementLoaderTest {
     Path path = UtilForTest.createFile(fileSystem, "extrato_01.csv", file1Content);
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
-    DatabaseManager databaseManager = DatabaseManager.from(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new InputDataManager(), new LoadControlActions(ctx), new StatementActions(ctx));
-    StatementSummary summary = loader.load(path, Statement.transformToStatement())._2()
-                                     .orElseThrow(() -> new LoaderException("Should have a summary"));
+    Tuple2<Optional<Throwable>, Optional<StatementSummary>> load = loadData(path);
+
+    StatementSummary summary = load._2().orElseThrow(() -> new LoaderException("Should have a summary"));
+
     Files.delete(path);
 
     assertThat(summary.getCount(), is(1L));
@@ -222,10 +217,9 @@ public class NotOkStatementLoaderTest {
     Path path = UtilForTest.createFile(fileSystem, "extrato_01.csv", file1Content);
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
-    DatabaseManager databaseManager = DatabaseManager.from(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new InputDataManager(), new LoadControlActions(ctx), new StatementActions(ctx));
-    StatementSummary summary = loader.load(path, Statement.transformToStatement())._2()
-                                     .orElseThrow(() -> new LoaderException("Should have a summary"));
+    Tuple2<Optional<Throwable>, Optional<StatementSummary>> load = loadData(path);
+
+    StatementSummary summary = load._2().orElseThrow(() -> new LoaderException("Should have a summary"));
     Files.delete(path);
 
     assertThat(summary.getCount(), is(2L));
@@ -250,10 +244,9 @@ public class NotOkStatementLoaderTest {
     Path path = UtilForTest.createFile(fileSystem, "extrato_01.csv", file1Content);
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
-    DatabaseManager databaseManager = DatabaseManager.from(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new InputDataManager(), new LoadControlActions(ctx), new StatementActions(ctx));
-    StatementSummary summary = loader.load(path, Statement.transformToStatement())._2()
-                                     .orElseThrow(() -> new LoaderException("Should have a summary"));
+    Tuple2<Optional<Throwable>, Optional<StatementSummary>> load = loadData(path);
+
+    StatementSummary summary = load._2().orElseThrow(() -> new LoaderException("Should have a summary"));
     Files.delete(path);
 
     assertThat(summary.getCount(), is(1L));
@@ -278,9 +271,8 @@ public class NotOkStatementLoaderTest {
     Path path = UtilForTest.createFile(fileSystem, "extrato_01.csv", file1Content);
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
-    DatabaseManager databaseManager = DatabaseManager.from(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new InputDataManager(), new LoadControlActions(ctx), new StatementActions(ctx));
-    Tuple2<Optional<Throwable>, Optional<StatementSummary>> load = loader.load(path, Statement.transformToStatement());
+    Tuple2<Optional<Throwable>, Optional<StatementSummary>> load = loadData(path);
+
     Files.delete(path);
 
     assertThat(load._1().isPresent(), is(equalTo(true)));
@@ -307,27 +299,22 @@ public class NotOkStatementLoaderTest {
     Path path = UtilForTest.createFile(fileSystem, "extrato_01.csv", file1Content);
     Files.readAllLines(path).forEach(line -> LOG.info("Line:[{}]", line));
 
-    DatabaseManager databaseManager = DatabaseManager.from(connection);
-    StatementLoader loader = new StatementLoader(databaseManager, new InputDataManager(), new LoadControlActions(ctx), new StatementActions(ctx));
-    Tuple2<Optional<Throwable>, Optional<StatementSummary>> load = loader.load(path, Statement.transformToStatement());
-    Files.delete(path);
-
-    assertThat(load._1().isPresent(), is(equalTo(true)));
-    assertThat(load._1().get(), instanceOf(LoaderException.class));
-    assertThat(load._1().get().getMessage(),
+    Tuple2<Optional<Throwable>, Optional<StatementSummary>> load1 = loadData(path);
+    assertThat(load1._1().isPresent(), is(equalTo(true)));
+    assertThat(load1._1().get(), instanceOf(LoaderException.class));
+    assertThat(load1._1().get().getMessage(),
                is(equalTo("Record [1] does not have all needed fields to be transformed to statement")));
-    assertThat(load._2().isPresent(), is(equalTo(true)));
-    assertThat(load._2().get().count(), is(equalTo(2L)));
-    assertThat(load._2().get().minDate(), is(equalTo(LocalDate.of(2020, 04, 01))));
-    assertThat(load._2().get().maxDate(), is(equalTo(LocalDate.of(2020, 04, 02))));
-    assertThat(load._2().get().totalAmount(), is(equalTo(BigDecimal.ZERO)));
+    assertThat(load1._2().isPresent(), is(equalTo(true)));
+    assertThat(load1._2().get().count(), is(equalTo(2L)));
+    assertThat(load1._2().get().minDate(), is(equalTo(LocalDate.of(2020, 04, 01))));
+    assertThat(load1._2().get().maxDate(), is(equalTo(LocalDate.of(2020, 04, 02))));
+    assertThat(load1._2().get().totalAmount(), is(equalTo(BigDecimal.ZERO)));
     assertThat(getStatementCounter(), is(2));
     checkLoadControl(1, 1, LocalDate.of(2020, 04, 01), LocalDate.of(2020, 04, 02), 2, false, path, "badad3271238b20adef511aad2efc238");
 
-    Path path2 = UtilForTest.createFile(fileSystem, "extrato_02.csv", file1Content);
-    Files.readAllLines(path2).forEach(line -> LOG.info("Line(path2):[{}]", line));
-    Tuple2<Optional<Throwable>, Optional<StatementSummary>> load2 = loader.load(path2, Statement.transformToStatement());
-    Files.delete(path2);
+    Tuple2<Optional<Throwable>, Optional<StatementSummary>> load2 = loadData(path);
+
+    Files.delete(path);
 
     assertThat(load2._1().isPresent(), is(equalTo(true)));
     assertThat(load2._1().get(), instanceOf(LoaderException.class));
@@ -335,6 +322,14 @@ public class NotOkStatementLoaderTest {
                is(equalTo("hashCode [badad3271238b20adef511aad2efc238] already loaded in file:[C:\\work\\extrato_01.csv]")));
     assertThat(load2._2().isPresent(), is(equalTo(false)));
     System.out.println();
+  }
+
+  private Tuple2<Optional<Throwable>, Optional<StatementSummary>> loadData(Path path) {
+    StatementLoader loader = new StatementLoader(connection.getOrElseThrow(() -> new RuntimeException("Should have a connection")),
+                                                 new InputDataManager(),
+                                                 new LoadControlActions(ctx),
+                                                 new StatementActions(ctx));
+    return loader.load(path, Statement.transformToStatement());
   }
 
   private void checkLoadControl(int loadControlRows,

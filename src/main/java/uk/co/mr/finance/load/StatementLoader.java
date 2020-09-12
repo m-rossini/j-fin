@@ -11,6 +11,7 @@ import uk.co.mr.finance.domain.Statement;
 import uk.co.mr.finance.domain.StatementSummary;
 
 import java.nio.file.Path;
+import java.sql.Connection;
 import java.sql.Savepoint;
 import java.util.Collection;
 import java.util.DoubleSummaryStatistics;
@@ -35,14 +36,17 @@ public class StatementLoader implements DataLoader<Statement, DoubleSummaryStati
   private final LoadControlActions loadControlActions;
   private final StatementActions statementActions;
   private Savepoint savePoint;
+  private final Connection connection;
   private final InputDataManager inputDataManager;
-  private final DatabaseManager dbManager;
   public static final String ERR_MSG_REC_PRO = "This exception occurred while processing statements records";
   public static final String ERR_MSG_REC_GEN = "This exception occurred while generating statements records";
 
-  public StatementLoader(DatabaseManager dbManager, InputDataManager inputDataManager, LoadControlActions loadControlActions, StatementActions statementActions) {
-    dbManager.safeSetAutoCommitOff();
-    this.dbManager = dbManager;
+  public StatementLoader(Connection connection,
+                         InputDataManager inputDataManager,
+                         LoadControlActions loadControlActions,
+                         StatementActions statementActions) {
+
+    this.connection = connection;
     this.inputDataManager = inputDataManager;
     this.loadControlActions = loadControlActions;
     this.statementActions = statementActions;
@@ -53,7 +57,7 @@ public class StatementLoader implements DataLoader<Statement, DoubleSummaryStati
   public Tuple2<Optional<Throwable>, Optional<StatementSummary>>
   load(Path path, Function<String[], Validation<Seq<Throwable>, Statement>> transformer) {
 
-    Try<Integer> tryOpenControl = openLoadControl(path).peek(controlId -> dbManager.safeCommit());
+    Try<Integer> tryOpenControl = openLoadControl(path).peek(controlId -> DatabaseManager.safeCommit(connection));
 
     AtomicReference<Throwable> hasIntermediateErrors =
         tryOpenControl.transform(f -> f.isFailure() ? new AtomicReference<>(f.getCause()) : new AtomicReference<>());
@@ -65,6 +69,7 @@ public class StatementLoader implements DataLoader<Statement, DoubleSummaryStati
                       .peek(u -> handleThrowable(u._1(), hasIntermediateErrors, ERR_MSG_REC_GEN))
                       .map(Tuple2::_2)
                       .map(Collection::stream)
+                      //TODO Make it parallel
                       .map(this::processStatements)
                       .peek(l -> LOG.info("[{}] insert statements processed", l.size()))
                       .map(Collection::stream)
@@ -74,14 +79,14 @@ public class StatementLoader implements DataLoader<Statement, DoubleSummaryStati
                       .map(Tuple2::_2)
                       .map(Option::ofOptional)
                       .peek(o -> o.peek(ss -> statementActions.tryReorderData()))
-                      .peek(o -> o.peek(s -> dbManager.safeCommit()))
+                      .peek(o -> o.peek(ss -> DatabaseManager.safeCommit(connection)))
                       .map(o -> o.getOrElse(StatementSummary.DEFAULT_STATEMENT));
 
     Try<Integer> updateAndClose =
         tryOpenControl.peek(controlId -> results.peek(ss -> loadControlActions.tryUpdateLoadControl(controlId, ss)))
                       .andThenTry(loadControlActions::tryCloseLoadControl)
-                      .onFailure(t -> dbManager.safeRollback())
-                      .onSuccess(i -> dbManager.safeCommit());
+                      .onFailure(t -> DatabaseManager.safeRollback(connection))
+                      .onSuccess(i -> DatabaseManager.safeCommit(connection));
 
     Optional<Throwable> part1 =
         Stream.concat(List.of(tryOpenControl, results, updateAndClose).stream()
@@ -102,8 +107,7 @@ public class StatementLoader implements DataLoader<Statement, DoubleSummaryStati
     return inputDataManager.mayHashFile(path)
                            .onFailure(t -> LOG.error("Error trying to read file", t))
                            .flatMap(loadControlActions::tryCanInsert)
-                           .flatMap(hash -> loadControlActions.tryInsertLoadControl(path.toAbsolutePath().toString(), hash))
-                           .peek(id -> dbManager.safeCommit());
+                           .flatMap(hash -> loadControlActions.tryInsertLoadControl(path.toAbsolutePath().toString(), hash));
   }
 
   private Tuple2<List<Throwable>, List<Statement>> collectStatements(Stream<? extends Validation<Seq<Throwable>, Statement>> v) {
@@ -156,14 +160,15 @@ public class StatementLoader implements DataLoader<Statement, DoubleSummaryStati
                        .onFailure(t -> {
                          if (null == this.savePoint) {
                            LOG.debug("Save point is null, rolling back everything");
-                           dbManager.safeRollback();
+                           DatabaseManager.safeRollback(connection);
                          } else {
                            LOG.debug("Rolling back to save point:[{}]", savePoint);
-                           dbManager.safeRollbackTo(this.savePoint);
+                           DatabaseManager.safeRollbackTo(connection, this.savePoint);
                          }
                        })
                        .peek(statement -> {
-                         this.savePoint = dbManager.safeSetSavePoint().getOrElse((Savepoint) null);
+                         this.savePoint = DatabaseManager.safeSetSavePoint(connection)
+                                                         .getOrElse((Savepoint) null);
                          LOG.debug("Save point set to:[{}]", savePoint);
                        });
   }

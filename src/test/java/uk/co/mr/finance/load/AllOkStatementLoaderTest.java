@@ -3,13 +3,12 @@ package uk.co.mr.finance.load;
 import com.google.common.jimfs.Configuration;
 import com.google.common.jimfs.Jimfs;
 import io.vavr.Tuple2;
-import liquibase.exception.LiquibaseException;
+import io.vavr.control.Try;
 import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
 import org.jooq.impl.DSL;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -25,8 +24,6 @@ import java.math.BigDecimal;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
@@ -39,12 +36,11 @@ import java.util.stream.Stream;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static uk.co.mr.finance.db.Tables.LOAD_CONTROL;
 import static uk.co.mr.finance.db.Tables.STATEMENT_DATA;
-import static uk.co.mr.finance.load.UtilForTest.createDatabase;
+import static uk.co.mr.finance.load.UtilForTest.DRIVER_NAME;
 
 public class AllOkStatementLoaderTest {
   private static final Logger LOG = LoggerFactory.getLogger(AllOkStatementLoaderTest.class);
@@ -62,32 +58,31 @@ public class AllOkStatementLoaderTest {
           .withPassword(PASS_WORD)
           .withExposedPorts(5432);
 
-  private static Connection connection;
   private static FileSystem fileSystem;
   private static List<Tuple2<Path, Tuple2<Optional<Throwable>, Optional<StatementSummary>>>> pairs;
-  private DSLContext ctx;
+  private static DSLContext ctx;
+  private static DatabaseManager databaseManager;
 
   @BeforeAll
-  public static void set_up() throws SQLException, LiquibaseException, IOException {
+  public static void set_up() throws IOException {
     LOG.info("Starting up");
     container.start();
 
-    connection = DriverManager.getConnection(container.getJdbcUrl(), USER_ID, "finance");
-    DatabaseManager databaseManager = DatabaseManager.from(connection);
-
-    createDatabase(connection);
-
     fileSystem = Jimfs.newFileSystem(Configuration.windows());
-
     Collection<Path> filesToLoad = createFilesToLoad();
 
-    DSLContext ctx =
-        databaseManager.getConnection()
-                       .map(c -> DSL.using(c, SQLDialect.POSTGRES))
+    databaseManager = DatabaseManager.from(DRIVER_NAME, container.getJdbcUrl(), container.getUsername(), container.getPassword());
+    Try<Connection> tryConnection = databaseManager.getConnection();
+
+    tryConnection.peek(UtilForTest::createDatabase);
+    ctx = tryConnection.map(c -> DSL.using(c, SQLDialect.POSTGRES))
                        .getOrElseThrow(() -> new IllegalArgumentException("Connection is not created"));
 
-    StatementLoader loader = new StatementLoader(databaseManager, new InputDataManager(), new LoadControlActions(ctx), new StatementActions(ctx));
-    pairs = loadFiles(loader, filesToLoad);
+
+    pairs = tryConnection.map(c -> new StatementLoader(c, new InputDataManager(), new LoadControlActions(ctx), new StatementActions(ctx)))
+                         .map(loader -> loadFiles(loader, filesToLoad))
+                         .getOrElseThrow(() -> new RuntimeException("Should have a tuple as results."));
+
     pairs.forEach(p -> LOG.info("Results:[{}]:", p));
   }
 
@@ -139,13 +134,10 @@ public class AllOkStatementLoaderTest {
   @AfterAll
   public static void tear_down() {
     LOG.info("Shutting down");
+
+    ctx.close();
+    databaseManager.safeClose();
     container.stop();
-  }
-
-
-  @BeforeEach
-  void setUp() {
-    ctx = DSL.using(connection, SQLDialect.POSTGRES);
   }
 
   @Test

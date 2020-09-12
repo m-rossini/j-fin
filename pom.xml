@@ -34,8 +34,9 @@
         <jooq-codegen-maven.version>3.13.2</jooq-codegen-maven.version>
         <liquibase-core.version>4.0.0</liquibase-core.version>
         <javalin.version>3.9.1</javalin.version>
-        <vavr.version>0.10.3</vavr.version>
+        <vavr.version>0.10.2</vavr.version>
         <jackson.version>2.11.2</jackson.version>
+        <hikaricp.version>3.4.5</hikaricp.version>
     </properties>
 
     <dependencies>
@@ -48,6 +49,12 @@
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jdk8</artifactId>
             <version>${jackson.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <version>${hikaricp.version}</version>
         </dependency>
 
         <dependency>

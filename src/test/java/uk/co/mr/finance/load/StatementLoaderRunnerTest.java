@@ -99,7 +99,7 @@ public class StatementLoaderRunnerTest {
                                    () -> fail("No throwable present as first element of the tuple and one was expected"));
 
     maybeThrowable.map(Throwable::getMessage)
-                  .ifPresentOrElse(e -> assertThat(e, is("File [non-existent-file] cannot be read")),
+                  .ifPresentOrElse(e -> assertThat(e, is("File [D:\\Development\\DevProjects\\j-fin\\non-existent-file] cannot be read")),
                                    () -> fail("Throwable message is different from the expected"));
   }
 
