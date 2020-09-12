@@ -2,6 +2,7 @@ package uk.co.mr.finance.load;
 
 import com.google.common.jimfs.Configuration;
 import com.google.common.jimfs.Jimfs;
+import io.vavr.Value;
 import io.vavr.collection.Seq;
 import io.vavr.control.Try;
 import io.vavr.control.Validation;
@@ -17,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.co.mr.finance.domain.Statement;
 
+import javax.xml.crypto.Data;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.FileSystem;
@@ -81,7 +83,10 @@ class StatementActionsTest {
     assertThat(expectedSize, is(equalTo(size1)));
 
     actions.tryReorderData();
-    containerManager.getDatabaseManager().ifPresent(DatabaseManager::safeCommit);
+    containerManager.getDatabaseManager()
+                    .map(DatabaseManager::getConnection)
+                    .flatMap(Value::toJavaOptional)
+                    .ifPresent(DatabaseManager::safeCommit);
 
     List<Record11<Integer, Integer, Integer, LocalDate, String, String, String, String, BigDecimal, BigDecimal, BigDecimal>> rows2 =
         getRecords(shouldBeOrder, previousBalanceColumn);
@@ -165,6 +170,9 @@ class StatementActionsTest {
                                     .count();
     assertThat(successInserts, is(equalTo(6L)));
 
-    containerManager.getDatabaseManager().ifPresent(DatabaseManager::safeCommit);
+    containerManager.getDatabaseManager()
+                    .map(DatabaseManager::getConnection)
+                    .flatMap(Value::toJavaOptional)
+                    .ifPresent(DatabaseManager::safeCommit);
   }
 }

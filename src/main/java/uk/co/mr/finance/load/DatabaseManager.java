@@ -1,100 +1,76 @@
 package uk.co.mr.finance.load;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.Savepoint;
-import java.util.Objects;
 
-//TODO use a real connection pool please
+
 public class DatabaseManager {
   private static final Logger LOG = LoggerFactory.getLogger(DatabaseManager.class);
+  private static final int MAX_POOL_SIZE = 4;
 
-  private final Try<Connection> connection;
+  private final HikariDataSource hikariDataSource;
 
-  public static final DatabaseManager from(String driverName, String connectString, String userId, String userPwd) {
+  public static DatabaseManager from(String driverName, String connectString, String userId, String userPwd) {
     return new DatabaseManager(driverName, connectString, userId, userPwd);
   }
 
-  public static final DatabaseManager from(Connection connection) {
-    return new DatabaseManager(connection);
-  }
-
   private DatabaseManager(String driverName, String connectString, String userId, String userPwd) {
-    Objects.requireNonNull(driverName, "Driver name cannot be null");
-    Objects.requireNonNull(connectString, "Connection string cannot be null");
-    Objects.requireNonNull(userId, "User id and/or password cannot be null");
-    Objects.requireNonNull(userPwd, "User id and/or password cannot be null");
+    HikariConfig hikariConfig = new HikariConfig();
+    hikariConfig.setJdbcUrl(connectString);
+    hikariConfig.setDriverClassName(driverName);
+    hikariConfig.setUsername(userId);
+    hikariConfig.setPassword(userPwd);
+    hikariConfig.setAutoCommit(false);
+    hikariConfig.setMaximumPoolSize(MAX_POOL_SIZE);
 
-    this.connection = connect(driverName, connectString, userId, userPwd);
-
-  }
-
-  private DatabaseManager(Connection connection) {
-    this.connection =
-        Try.of(() -> connection)
-           .filterTry(c -> c.isValid(60))
-           .onFailure(t -> LOG.error("Connection is not in a valid state", t));
-  }
-
-  private Try<Connection> connect(String driverName, String connectString, String userId, String userPwd) {
-    return loadDriver(driverName).flatMap(v -> safeConnect(connectString, userId, userPwd));
-  }
-
-  private Try<? extends Class<?>> loadDriver(String driverName) {
-    return Try.of(() -> Class.forName(driverName))
-              .onFailure(e -> LOG.error("Unable to load Driver", e));
-  }
-
-  private Try<Connection> safeConnect(String connectString, String userId, String userPwd) {
-    return Try.of(() -> DriverManager.getConnection(connectString, userId, userPwd))
-              .onFailure(t -> LOG.error("Unable to obtain a connection", t));
+    hikariDataSource = new HikariDataSource(hikariConfig);
   }
 
   public final Try<Connection> getConnection() {
-    return connection;
-  }
-
-  public Option<Savepoint> safeSetSavePoint() {
-    return connection.flatMap(c -> Try.of(c::setSavepoint)
-                                      .onFailure(e -> LOG.error(
-                                          "Exception while setting save point in connection", e)))
-                     .toOption();
-  }
-
-
-  public void safeRollback() {
-    connection.peek(c -> Try.run(c::rollback)
-                            .onFailure(e -> LOG.error("Exception while rolling back connection", e)));
-  }
-
-  public void safeRollbackTo(Savepoint savePoint) {
-    connection.peek(c -> Try.run(() -> c.rollback(savePoint))
-                            .onFailure(e -> LOG.error("Exception while rolling back connection to save point:[{}]",
-                                                      savePoint,
-                                                      e)));
+    LOG.warn(">>>Trying to get get a connection, Max Pool:[{}], Max Life time:[{}]", hikariDataSource.getMaximumPoolSize(),hikariDataSource.getMaxLifetime());
+    return Try.of(hikariDataSource::getConnection);
   }
 
   public void safeClose() {
-    connection.peek(c -> Try.run(c::close).onFailure(e -> LOG.error("Exception while closing connection", e)));
+    hikariDataSource.close();
   }
 
-  public void safeCommit() {
-    connection.peek(c -> Try.run(c::commit).onFailure(e -> LOG.error("Exception while committing connection", e)));
+  public static Option<Savepoint> safeSetSavePoint(Connection connection) {
+    return Try.of(() -> connection)
+              .peek(c -> LOG.debug("About to set save point to connection:[{}]",c))
+              .peek(c -> LOG.info("About to set save point to connection:[{}]",c))
+              .mapTry(Connection::setSavepoint)
+              .onFailure(e -> LOG.error("Exception while setting save point in connection", e))
+              .onSuccess(s -> LOG.debug("Save point:[{}]",s))
+              .toOption();
   }
 
-  public void safeSetAutoCommitOff() {
-    connection.peek(c -> Try.run(() -> c.setAutoCommit(false))
-                            .onFailure(e -> LOG.error("Exception while setting autocommit on", e)));
+  public static void safeCloseConnection(Connection connection) {
+    LOG.warn(">>>Trying to close connection:[{}]", connection);
+    Try.run(connection::close)
+       .onFailure(e -> LOG.error("Exception while closing connection", e));
   }
 
-  public void safeSetAutoCommitOn() {
-    connection.peek(c -> Try.run(() -> c.setAutoCommit(true))
-                            .onFailure(e -> LOG.error("Exception while setting autocommit off", e)));
+  public static void safeCommit(Connection connection) {
+    Try.run(connection::commit)
+       .onFailure(e -> LOG.error("Exception while committing connection", e));
+  }
+
+  public static void safeRollback(Connection connection) {
+    Try.run(connection::rollback)
+       .onFailure(e -> LOG.error("Exception while rolling back connection", e));
+  }
+
+  public static void safeRollbackTo(Connection connection, Savepoint savePoint) {
+    Try.run(() -> connection.rollback(savePoint))
+       .onFailure(e -> LOG.error("Exception while rolling back connection to save point:[{}]", savePoint, e));
   }
 
 }

@@ -4,6 +4,7 @@ import liquibase.Liquibase;
 import liquibase.database.Database;
 import liquibase.database.DatabaseFactory;
 import liquibase.database.jvm.JdbcConnection;
+import liquibase.exception.DatabaseException;
 import liquibase.exception.LiquibaseException;
 import liquibase.resource.ClassLoaderResourceAccessor;
 
@@ -15,6 +16,8 @@ import java.nio.file.StandardOpenOption;
 import java.sql.Connection;
 
 public final class UtilForTest {
+  public static final String DRIVER_NAME = "org.postgresql.Driver";
+
   private UtilForTest() {
 
   }
@@ -47,12 +50,15 @@ public final class UtilForTest {
     }
   }
 
-  public static void dropDatabase(Connection connection) throws LiquibaseException {
-    Database database =
-        DatabaseFactory.getInstance()
-                       .findCorrectDatabaseImplementation(new JdbcConnection(connection));
-    Liquibase liquibase =
-        new Liquibase("db/k_finance_00_master_changelog.xml", new ClassLoaderResourceAccessor(), database);
-    liquibase.dropAll();
+  public static void dropDatabase(Connection connection) {
+    try {
+      Database database = DatabaseFactory.getInstance()
+                                         .findCorrectDatabaseImplementation(new JdbcConnection(connection));
+      Liquibase liquibase =
+          new Liquibase("db/k_finance_00_master_changelog.xml", new ClassLoaderResourceAccessor(), database);
+      liquibase.dropAll();
+    } catch (DatabaseException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

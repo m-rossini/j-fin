@@ -63,16 +63,10 @@ public class StatementLoaderRunner implements Callable<Iterable<Tuple2<Optional<
     Instant is = Instant.now();
 
     DatabaseManager databaseManager = DatabaseManager.from(driverName, connectString, userId, cleanPassword);
-    Try<Connection> connection = databaseManager.getConnection();
-    if (connection.isFailure()) {
-      return List.of(new Tuple2<>(Optional.of(connection.getCause()),
-                                  Optional.empty()));
-    }
 
     MultiStatementLoader multiStatementLoader = new MultiStatementLoader(databaseManager);
     Collection<Tuple2<Optional<Throwable>, Optional<StatementSummary>>> loadResults = multiStatementLoader.load(fileNamesToLoad);
-
-    connection.peek(c -> databaseManager.safeClose());
+    databaseManager.safeClose();
 
     Duration duration = Duration.between(is, Instant.now());
 

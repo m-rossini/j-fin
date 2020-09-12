@@ -6,6 +6,14 @@
         </encoder>
     </appender>
 
+    <logger name="uk.co.mr.finance.load.StatementLoader" additivity="false" level="debug">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <logger name="uk.co.mr.finance.load.DatabaseManager" additivity="false" level="debug">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
     <root level="INFO">
         <appender-ref ref="STDOUT"/>
     </root>
