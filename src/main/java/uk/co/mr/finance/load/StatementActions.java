@@ -30,20 +30,6 @@ public class StatementActions {
   }
 
   public int tryReorderData() {
-
-//    SelectSeekStep1<Record4<Integer, Integer, LocalDate, Integer>, Integer> q1 =
-//        ctx.select(STATEMENT_DATA.STATEMENT_ID,
-//                   STATEMENT_DATA.TRANSACTION_ORDER,
-//                   STATEMENT_DATA.STATEMENT_DATE,
-//                   rowNumber().over()
-//                              .orderBy(STATEMENT_DATA.STATEMENT_DATE,STATEMENT_DATA.STATEMENT_ID.desc())
-//                              .as("calculated_transaction_order"))
-//           .from(STATEMENT_DATA)
-//           .orderBy(STATEMENT_DATA.STATEMENT_ID);
-//    LOG.info("q1:{}", q1);
-//    Result<Record4<Integer, Integer, LocalDate, Integer>> fetch1 = q1.fetch();
-//    LOG.info("Fetch1:{}", fetch1);
-
     return Try.of(() -> ctx.select(STATEMENT_DATA.STATEMENT_ID,
                                    STATEMENT_DATA.TRANSACTION_ORDER,
                                    rowNumber().over()

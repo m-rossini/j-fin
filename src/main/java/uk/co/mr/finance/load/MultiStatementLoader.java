@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 public class MultiStatementLoader {
   private static final Logger LOG = LoggerFactory.getLogger(MultiStatementLoader.class);
   private DatabaseManager databaseManager;
+  private int commitEvery;
 
   public MultiStatementLoader(DatabaseManager databaseManager) {
     this.databaseManager = databaseManager;
@@ -28,21 +29,24 @@ public class MultiStatementLoader {
   public Collection<Tuple2<Optional<Throwable>, Optional<StatementSummary>>> load(Collection<? extends Path> fileNamesToLoad) {
     Try<Connection> connection = databaseManager.getConnection();
     try (DSLContext ctx = connection
-        .peek(c -> LOG.info(">>>Connection A:[{}}", connection))
+        .peek(c -> LOG.debug(">>>Connection A:[{}}", connection))
         .map(c -> DSL.using(c, SQLDialect.POSTGRES))
         .getOrElseThrow(() -> new IllegalArgumentException("Connection is not created"))) {
 
-      return connection.map(c -> new StatementLoader(c,
-                                                     new InputDataManager(),
-                                                     new LoadControlActions(ctx),
-                                                     new StatementActions(ctx)))
+      commitEvery = 100;
+      return connection.map(c -> new StatementPathLoader(c,
+                                                         new InputDataManager(),
+                                                         new LoadControlActions(ctx),
+                                                         new StatementActions(ctx),
+                                                         commitEvery)
+                            )
                        .map(loader -> loadFiles(loader, fileNamesToLoad))
                        .andFinally(() -> connection.peek(DatabaseManager::safeCloseConnection))
                        .getOrElseThrow(() -> new RuntimeException("Should have a tuple as result from load"));
     }
   }
 
-  private List<Tuple2<Optional<Throwable>, Optional<StatementSummary>>> loadFiles(StatementLoader loader, Collection<? extends Path> fileNamesToLoad) {
+  private List<Tuple2<Optional<Throwable>, Optional<StatementSummary>>> loadFiles(StatementPathLoader loader, Collection<? extends Path> fileNamesToLoad) {
     return fileNamesToLoad.stream().map(f -> loader.load(f, Statement.transformToStatement())).collect(Collectors.toList());
   }
 

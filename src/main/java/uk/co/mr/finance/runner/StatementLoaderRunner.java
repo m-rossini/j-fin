@@ -1,7 +1,6 @@
 package uk.co.mr.finance.runner;
 
 import io.vavr.Tuple2;
-import io.vavr.control.Try;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
@@ -10,10 +9,9 @@ import uk.co.mr.finance.domain.Statement;
 import uk.co.mr.finance.domain.StatementSummary;
 import uk.co.mr.finance.load.DatabaseManager;
 import uk.co.mr.finance.load.MultiStatementLoader;
-import uk.co.mr.finance.load.StatementLoader;
+import uk.co.mr.finance.load.StatementPathLoader;
 
 import java.nio.file.Path;
-import java.sql.Connection;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
@@ -94,7 +92,7 @@ public class StatementLoaderRunner implements Callable<Iterable<Tuple2<Optional<
                                    .count();
   }
 
-  private List<Tuple2<Optional<Throwable>, Optional<StatementSummary>>> loadFiles(StatementLoader loader, Collection<? extends Path> fileNamesToLoad) {
+  private List<Tuple2<Optional<Throwable>, Optional<StatementSummary>>> loadFiles(StatementPathLoader loader, Collection<? extends Path> fileNamesToLoad) {
     return fileNamesToLoad.stream().map(f -> loader.load(f, Statement.transformToStatement())).collect(Collectors.toList());
   }
 
