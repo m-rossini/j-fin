@@ -24,8 +24,10 @@ public record Statement(Integer statementId,
                         String transactionDescription,
                         BigDecimal transactionAmount,
                         BigDecimal totalBalance) {
+
+  public static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
   private static final Logger LOG = LoggerFactory.getLogger(Statement.class);
-  private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
   public static Function<String[], Validation<Seq<Throwable>, Statement>> transformToStatement() {
     return record -> {

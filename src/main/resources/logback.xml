@@ -6,11 +6,11 @@
         </encoder>
     </appender>
 
-    <logger name="uk.co.mr.finance.load.StatementLoader" additivity="false" level="debug">
+    <logger name="uk.co.mr.finance.load.StatementPathLoader" additivity="false" level="info">
         <appender-ref ref="STDOUT"/>
     </logger>
 
-    <logger name="uk.co.mr.finance.load.DatabaseManager" additivity="false" level="debug">
+    <logger name="uk.co.mr.finance.load.DatabaseManager" additivity="false" level="info">
         <appender-ref ref="STDOUT"/>
     </logger>
 

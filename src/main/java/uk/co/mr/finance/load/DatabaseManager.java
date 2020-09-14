@@ -34,7 +34,6 @@ public class DatabaseManager {
   }
 
   public final Try<Connection> getConnection() {
-    LOG.warn(">>>Trying to get get a connection, Max Pool:[{}], Max Life time:[{}]", hikariDataSource.getMaximumPoolSize(),hikariDataSource.getMaxLifetime());
     return Try.of(hikariDataSource::getConnection);
   }
 
@@ -45,15 +44,13 @@ public class DatabaseManager {
   public static Option<Savepoint> safeSetSavePoint(Connection connection) {
     return Try.of(() -> connection)
               .peek(c -> LOG.debug("About to set save point to connection:[{}]",c))
-              .peek(c -> LOG.info("About to set save point to connection:[{}]",c))
               .mapTry(Connection::setSavepoint)
               .onFailure(e -> LOG.error("Exception while setting save point in connection", e))
-              .onSuccess(s -> LOG.debug("Save point:[{}]",s))
               .toOption();
   }
 
   public static void safeCloseConnection(Connection connection) {
-    LOG.warn(">>>Trying to close connection:[{}]", connection);
+    LOG.info(">>>CLOSING CONNECTION");
     Try.run(connection::close)
        .onFailure(e -> LOG.error("Exception while closing connection", e));
   }
