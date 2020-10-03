@@ -30,7 +30,6 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 import static uk.co.mr.finance.load.UtilForTest.createDatabase;
@@ -50,14 +49,13 @@ public class StatementPathLoaderRunnerTest {
           .withPassword(PASS_WORD)
           .withExposedPorts(5432);
 
-  private static Connection connection;
   private static FileSystem fileSystem;
 
   @BeforeAll
   public static void setup() throws SQLException, LiquibaseException {
     LOG.info("Starting up");
     container.start();
-    connection = DriverManager.getConnection(container.getJdbcUrl(), USER_ID, "finance");
+    Connection connection = DriverManager.getConnection(container.getJdbcUrl(), USER_ID, "finance");
 
     createDatabase(connection);
 

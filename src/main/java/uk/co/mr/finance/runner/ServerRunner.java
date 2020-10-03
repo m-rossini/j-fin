@@ -11,19 +11,16 @@ import io.vavr.Tuple2;
 import io.vavr.Value;
 import io.vavr.control.Try;
 import io.vavr.jackson.datatype.VavrModule;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.co.mr.finance.domain.StatementSummary;
 import uk.co.mr.finance.load.DatabaseManager;
 import uk.co.mr.finance.load.MultiStatementLoader;
 
-import java.io.File;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +31,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import static io.javalin.apibuilder.ApiBuilder.get;
 import static io.javalin.apibuilder.ApiBuilder.path;
 import static io.javalin.apibuilder.ApiBuilder.post;
 
@@ -74,17 +72,11 @@ public class ServerRunner {
     Runtime.getRuntime().addShutdownHook(new Thread(app::stop));
 
     app.events(event -> {
-      event.serverStopping(() -> {
-        LOG.info("Server is Stopping");
-      });
-      event.serverStopped(() -> {
-        LOG.info("Server is Stopped");
-      });
+      event.serverStopping(() -> LOG.info("Server is Stopping"));
+      event.serverStopped(() -> LOG.info("Server is Stopped"));
     });
 
-    app.error(404, ctx -> {
-      ctx.redirect("/help");
-    });
+    app.error(404, ctx -> ctx.redirect("/help"));
 
     app.routes(() -> {
       path("/", () -> {
@@ -101,11 +93,11 @@ public class ServerRunner {
                                   .map(Value::getOrNull)
                                   .filter(Objects::nonNull)
                                   .collect(Collectors.toList());
-
           MultiStatementLoader loader = new MultiStatementLoader(databaseManager);
           Collection<Tuple2<Optional<Throwable>, Optional<StatementSummary>>> load = loader.load(paths);
           ctx.json(load);
         });
+        get("", ctx -> {});
       });
     });
   }
@@ -114,7 +106,7 @@ public class ServerRunner {
     Path path = Paths.get(fileNameCreator.get());
     path.toFile().deleteOnExit();
     return Try.of(() -> path)
-              .mapTry(p -> Files.newOutputStream(p))
+              .mapTry(Files::newOutputStream)
               .andThenTry(o -> input.getContent().transferTo(o))
               .andThenTry(OutputStream::close)
               .map(o -> path)

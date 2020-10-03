@@ -4,19 +4,10 @@ import io.vavr.Tuple2;
 import io.vavr.collection.Iterator;
 import io.vavr.control.Try;
 import org.jooq.DSLContext;
-import org.jooq.Record2;
-import org.jooq.Record3;
-import org.jooq.Record4;
-import org.jooq.Result;
-import org.jooq.SelectSeekStep1;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.co.mr.finance.domain.Statement;
 
-import java.time.LocalDate;
-
-import static org.jooq.impl.DSL.lead;
-import static org.jooq.impl.DSL.orderBy;
 import static org.jooq.impl.DSL.rowNumber;
 import static uk.co.mr.finance.db.Tables.STATEMENT_DATA;
 

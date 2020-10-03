@@ -62,7 +62,7 @@ public class AllOkStatementPathLoaderTest {
   private static List<Tuple2<Path, Tuple2<Optional<Throwable>, Optional<StatementSummary>>>> pairs;
   private static DSLContext ctx;
   private static DatabaseManager databaseManager;
-  private static Integer COMMIT_EVERY = 1000;
+  private static final Integer COMMIT_EVERY = 1000;
 
   @BeforeAll
   public static void set_up() throws IOException {
