@@ -5,11 +5,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
-import uk.co.mr.finance.domain.Statement;
 import uk.co.mr.finance.domain.StatementSummary;
 import uk.co.mr.finance.load.DatabaseManager;
 import uk.co.mr.finance.load.MultiStatementLoader;
-import uk.co.mr.finance.load.StatementPathLoader;
 
 import java.nio.file.Path;
 import java.time.Duration;
@@ -18,7 +16,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
-import java.util.stream.Collectors;
 
 import static picocli.CommandLine.Command;
 
@@ -81,19 +78,15 @@ public class StatementLoaderRunner implements Callable<Iterable<Tuple2<Optional<
         Summary: [%s]
         """;
 
-    long loadCommands = loadResults.stream()
-                                   .map(tuple -> message.formatted(duration.toString(),
-                                                                   tuple._1()
-                                                                        .map(t -> t.getClass().getCanonicalName())
-                                                                        .orElse("No exception occurred"),
-                                                                   tuple._1().map(Throwable::getMessage).orElse("No exception occurred"),
-                                                                   tuple._2().map(Object::toString).orElse("No summary was produced")))
-                                   .peek(m -> LOG.info("{}", m))
-                                   .count();
-  }
-
-  private List<Tuple2<Optional<Throwable>, Optional<StatementSummary>>> loadFiles(StatementPathLoader loader, Collection<? extends Path> fileNamesToLoad) {
-    return fileNamesToLoad.stream().map(f -> loader.load(f, Statement.transformToStatement())).collect(Collectors.toList());
+    loadResults.stream()
+               .map(tuple -> message.formatted(duration.toString(),
+                                               tuple._1()
+                                                    .map(t -> t.getClass().getCanonicalName())
+                                                    .orElse("No exception occurred"),
+                                               tuple._1().map(Throwable::getMessage).orElse("No exception occurred"),
+                                               tuple._2().map(Object::toString).orElse("No summary was produced")))
+               .peek(m -> LOG.info("{}", m))
+               .count();
   }
 
 }

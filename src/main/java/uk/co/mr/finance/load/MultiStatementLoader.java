@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 
 public class MultiStatementLoader {
   private static final Logger LOG = LoggerFactory.getLogger(MultiStatementLoader.class);
-  private DatabaseManager databaseManager;
+  private final DatabaseManager databaseManager;
   private int commitEvery;
 
   public MultiStatementLoader(DatabaseManager databaseManager) {

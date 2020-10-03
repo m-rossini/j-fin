@@ -9,7 +9,7 @@ import java.time.LocalDate;
 public record StatementSummary(long count, BigDecimal totalAmount, LocalDate minDate, LocalDate maxDate) {
   private static final Logger LOG = LoggerFactory.getLogger(StatementSummary.class);
 
-  public static StatementSummary DEFAULT_STATEMENT =
+  public static final StatementSummary DEFAULT_STATEMENT =
       new StatementSummary(0, BigDecimal.ZERO, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(0));
 
   public StatementSummary merge(StatementSummary other) {

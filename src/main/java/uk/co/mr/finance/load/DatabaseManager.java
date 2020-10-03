@@ -11,7 +11,7 @@ import java.sql.Connection;
 import java.sql.Savepoint;
 
 
-public class DatabaseManager {
+public final class DatabaseManager {
   private static final Logger LOG = LoggerFactory.getLogger(DatabaseManager.class);
   private static final int MAX_POOL_SIZE = 4;
 

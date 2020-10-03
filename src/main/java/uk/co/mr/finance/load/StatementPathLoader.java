@@ -36,7 +36,7 @@ public class StatementPathLoader implements DataLoader<Statement, DoubleSummaryS
 
   private final LoadControlActions loadControlActions;
   private final StatementActions statementActions;
-  private Integer commitEvery;
+  private final Integer commitEvery;
   private Savepoint savePoint;
   private final Connection connection;
   private final InputDataManager inputDataManager;
@@ -154,7 +154,6 @@ public class StatementPathLoader implements DataLoader<Statement, DoubleSummaryS
 
     return statements
         .peek(s -> accumulator.accumulate(1))
-        .parallel()
         .peek(s -> LOG.debug("Processing Statement:[{}]", s))
         .map(statementActions::tryInsertIntoStatement)
         .peek(tryOf -> LOG.debug("Result of insertion of statement:[{}]", tryOf))
