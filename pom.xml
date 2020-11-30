@@ -9,34 +9,35 @@
     <version>1.0-SNAPSHOT</version>
 
     <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <commons-codec.version>1.14</commons-codec.version>
+        <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
+        <hamcrest-library.version>2.1</hamcrest-library.version>
+        <hikaricp.version>3.4.5</hikaricp.version>
+        <jackson.version>2.11.2</jackson.version>
+        <jacoco-maven-plugin.version>0.8.5</jacoco-maven-plugin.version>
+        <javalin.version>3.9.1</javalin.version>
+        <jimfs.version>1.1</jimfs.version>
+        <jooq.version>3.13.2</jooq.version>
+        <jooq-codegen-maven.version>3.13.2</jooq-codegen-maven.version>
         <junit.version>4.12</junit.version>
         <junit.jupiter.version>5.6.2</junit.jupiter.version>
         <junit.platform.version>1.6.2</junit.platform.version>
-        <opencsv.version>4.6</opencsv.version>
-        <logback-classic.version>1.2.3</logback-classic.version>
-        <slf4j-api.version>1.7.30</slf4j-api.version>
+        <liquibase-core.version>4.0.0</liquibase-core.version>
         <liquibase-maven-plugin.version>4.0.0-beta1</liquibase-maven-plugin.version>
-        <postgresql.version>42.2.12</postgresql.version>
-        <picocli.version>4.3.2</picocli.version>
-        <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
-        <maven-jar-plugin.version>3.2.0</maven-jar-plugin.version>
-        <plugin.mainClass>uk.co.mr.finance.runner.StatementLoaderRunner</plugin.mainClass>
+        <logback-classic.version>1.2.3</logback-classic.version>
         <maven-assembly-plugin.version>3.1.1</maven-assembly-plugin.version>
-        <test.container.version>1.14.3</test.container.version>
-        <hamcrest-library.version>2.1</hamcrest-library.version>
-        <jimfs.version>1.1</jimfs.version>
-        <jooq.version>3.13.2</jooq.version>
-        <commons-codec.version>1.14</commons-codec.version>
+        <maven-jar-plugin.version>3.2.0</maven-jar-plugin.version>
+        <mockito.version>3.5.13</mockito.version>
+        <opencsv.version>4.6</opencsv.version>
+        <picocli.version>4.3.2</picocli.version>
+        <plugin.mainClass>uk.co.mr.finance.runner.ServerRunner</plugin.mainClass>
         <postgres.host>localhost</postgres.host>
         <postgres-database>finance</postgres-database>
-        <jacoco-maven-plugin.version>0.8.5</jacoco-maven-plugin.version>
-        <jooq-codegen-maven.version>3.13.2</jooq-codegen-maven.version>
-        <liquibase-core.version>4.0.0</liquibase-core.version>
-        <javalin.version>3.9.1</javalin.version>
+        <postgresql.version>42.2.12</postgresql.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <slf4j-api.version>1.7.30</slf4j-api.version>
+        <test.container.version>1.14.3</test.container.version>
         <vavr.version>0.10.2</vavr.version>
-        <jackson.version>2.11.2</jackson.version>
-        <hikaricp.version>3.4.5</hikaricp.version>
     </properties>
 
     <dependencies>
@@ -136,10 +137,17 @@
             <version>${jimfs.version}</version>
             <scope>test</scope>
         </dependency>
+
         <dependency>
             <groupId>org.mockito</groupId>
-            <artifactId>mockito-all</artifactId>
-            <version>1.10.19</version>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <version>3.5.13</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>3.5.13</version>
             <scope>test</scope>
         </dependency>
 

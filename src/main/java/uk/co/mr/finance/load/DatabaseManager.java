@@ -50,7 +50,6 @@ public final class DatabaseManager {
   }
 
   public static void safeCloseConnection(Connection connection) {
-    LOG.info(">>>CLOSING CONNECTION");
     Try.run(connection::close)
        .onFailure(e -> LOG.error("Exception while closing connection", e));
   }

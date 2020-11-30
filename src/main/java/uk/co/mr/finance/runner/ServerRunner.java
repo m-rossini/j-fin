@@ -13,6 +13,7 @@ import io.vavr.control.Try;
 import io.vavr.jackson.datatype.VavrModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
 import uk.co.mr.finance.domain.StatementSummary;
 import uk.co.mr.finance.load.DatabaseManager;
 import uk.co.mr.finance.load.MultiStatementLoader;
@@ -23,10 +24,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -35,28 +37,52 @@ import static io.javalin.apibuilder.ApiBuilder.get;
 import static io.javalin.apibuilder.ApiBuilder.path;
 import static io.javalin.apibuilder.ApiBuilder.post;
 
-public class ServerRunner {
+@CommandLine.Command(description = "Loads statement file into database", showDefaultValues = true)
+public class ServerRunner implements Callable<Integer> {
   private static final Logger LOG = LoggerFactory.getLogger(ServerRunner.class);
-  private final DatabaseManager databaseManager;
 
-  public static void main(String[] args) {
+  @CommandLine.Option(
+      names = {"-d", "--db-driver"},
+      required = true, description = "Database driver name to be used",
+      defaultValue = "org.postgresql.Driver")
+
+  public String driverName;
+
+  @CommandLine.Option(
+      names = {"-c", "--connect-string"},
+      required = true,
+      description = "Connection String to be used",
+      defaultValue = "jdbc:postgresql://localhost:5432/finance")
+  public String connectString;
+
+  @CommandLine.Option(
+      names = {"-u", "--user-id"},
+      required = false,
+      description = "User id to be used. It is optional, depends on database")
+  public String userId;
+
+  @CommandLine.Option(names = {"-w", "--password-clean"}, required = false, description = "Clean text password")
+  public String cleanPassword;
+
+
+  //TODO Mutually exclusive encrypted vs non encrypted password
+  @CommandLine.Option(names = {"-h", "--help"}, usageHelp = true, description = "Displays usage help")
+  private boolean usageHelpRequested;
+
+  public static void main(String[] args) throws ExecutionException, InterruptedException {
     ServerRunner serverRunner = new ServerRunner();
-
-    serverRunner.go();
+    CommandLine commandLine = new CommandLine(serverRunner);
+    CommandLine.ParseResult result = commandLine.parseArgs(args);
+    serverRunner.call();
   }
 
-  public ServerRunner() {
-    Map<String, String> envVariables = System.getenv();
+  //TODO Open APi
+  //TODO Port as CLI parameter
+  //TODO Health Check
+  @Override
+  public Integer call() {
+    DatabaseManager databaseManager = DatabaseManager.from(driverName, connectString, userId, cleanPassword);
 
-    String driverName = envVariables.get("driverName");
-    String connectString = envVariables.get("connectString");
-    String userId = envVariables.get("userId");
-    String cleanPassword = envVariables.get("cleanPassword");
-
-    databaseManager = DatabaseManager.from(driverName, connectString, userId, cleanPassword);
-  }
-
-  private void go() {
     ObjectMapper mapper = new ObjectMapper();
     mapper.registerModule(new Jdk8Module());
     mapper.registerModule(new VavrModule());
@@ -72,7 +98,10 @@ public class ServerRunner {
     Runtime.getRuntime().addShutdownHook(new Thread(app::stop));
 
     app.events(event -> {
-      event.serverStopping(() -> LOG.info("Server is Stopping"));
+      event.serverStopping(() -> {
+        LOG.info("Server is Stopping");
+        databaseManager.safeClose();
+      });
       event.serverStopped(() -> LOG.info("Server is Stopped"));
     });
 
@@ -97,9 +126,12 @@ public class ServerRunner {
           Collection<Tuple2<Optional<Throwable>, Optional<StatementSummary>>> load = loader.load(paths);
           ctx.json(load);
         });
-        get("", ctx -> {});
+        get("", ctx -> {
+        });
       });
     });
+
+    return 0;
   }
 
   private Try<Path> copyFrom(UploadedFile input, Supplier<String> fileNameCreator) {
@@ -112,5 +144,4 @@ public class ServerRunner {
               .map(o -> path)
               .onFailure(t -> LOG.error("Failed to copy file", t));
   }
-
 }
