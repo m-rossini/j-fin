@@ -1,0 +1,41 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+
+    <changeSet id="create-description-reference" author="marcos">
+        <createTable tableName="description_reference">
+            <column name="description_id" autoIncrement="true" type="java.sql.Types.INTEGER">
+                <constraints primaryKey="true" primaryKeyName="pk_description_reference_id"/>
+            </column>
+            <column name="description_reference" type="java.sql.Types.VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="add-description-reference-to-statement-data" author="marcos">
+        <addColumn schemaName="public"
+                   tableName="statement_data">
+            <column name="transaction_reference_id"
+                    type="java.sql.Types.INTEGER"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet  id="link-transaction-description-to-statement-data" author="marcos">
+        <addForeignKeyConstraint  baseColumnNames="transaction_reference_id"
+                                  baseTableName="statement_data"
+                                  baseTableSchemaName="public"
+                                  constraintName="fk_transaction_reference_id"
+                                  deferrable="false"
+                                  initiallyDeferred="false"
+                                  onDelete="SET NULL"
+                                  onUpdate="RESTRICT"
+                                  referencedColumnNames="description_id"
+                                  referencedTableName="description_reference"
+                                  referencedTableSchemaName="public"
+                                  validate="true"/>
+    </changeSet>
+
+</databaseChangeLog>
