@@ -33,7 +33,7 @@
         <plugin.mainClass>uk.co.mr.finance.runner.ServerRunner</plugin.mainClass>
         <postgres.host>localhost</postgres.host>
         <postgres-database>finance</postgres-database>
-        <postgresql.version>42.2.12</postgresql.version>
+        <postgresql.version>42.4.1</postgresql.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <slf4j-api.version>1.7.30</slf4j-api.version>
         <test.container.version>1.14.3</test.container.version>
